@@ -1,0 +1,21 @@
+# Python
+env/
+__pycache__/
+*.pyc
+
+# Node
+node_modules/
+npm-debug.log
+
+# React/Vite
+dist/
+build/
+
+# IDE / OS
+.vscode/
+.DS_Store
+
+# ML files
+*.pkl
+*.joblib
+*.csv
