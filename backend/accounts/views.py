@@ -135,7 +135,10 @@ class PasswordResetRequestView(APIView):
         serializer = PasswordResetRequestSerializer(data=request.data, context={"request": request})
         if serializer.is_valid():
             try:
+                print("✅ Serializer valid")
                 serializer.save()
+                print("✅ Serializer saved successfully")
+
                 return Response({"message": "Password reset email sent."}, status=status.HTTP_200_OK)
             except serializers.ValidationError as ve:
                 # Raised manually from .save() → return with error
