@@ -21,6 +21,7 @@ urlpatterns = [
     path("api/auth/", include("users.urls")),
     # path('analyze/', views.upload_and_analyze, name='upload_and_analyze'),  # ✅
     path('api/accounts/', include('accounts.urls')),
+    path('api/datasets/', include('datasets.urls')),
     # path("api/accounts/password-reset-request/", views.password_reset_request),
 
 ]
