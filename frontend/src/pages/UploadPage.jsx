@@ -186,11 +186,14 @@ const UploadPage = () => {
                     </select>
                   </div>
                 </>
-              )}
+              )} 
 
               {csvFile && (
                 <div className="mt-4 p-3 bg-green-50 rounded-lg border border-green-200">
                   <div className="flex items-center space-x-2">
+                     <Badge variant="secondary" className="mt-2 text-sm">
+                  {csvFile.name} ({(csvFile.size / 1024).toFixed(2)} KB)
+                </Badge>
                     <CheckCircle className="w-4 h-4 text-green-600" />
                     <span className="text-sm text-green-700 font-medium">
                       Dataset ready for analysis
@@ -237,7 +240,7 @@ const UploadPage = () => {
               <div className="flex-grow">
                 <FileUploader
                   acceptedTypes=".pkl"
-                  maxSize={100}
+                  maxSize={100} 
                   onFileSelect={setModelFile}
                   selectedFile={modelFile}
                   placeholder="Drop your model file here or click to browse"
