@@ -29,49 +29,49 @@ const UploadPage = () => {
   const [isPreprocessed, setIsPreprocessed] = useState(false);
   const [preprocessedDataKey, setPreprocessedDataKey] = useState(null); // 👈 New state for data_key
   const [modelMetrics, setModelMetrics] = useState(null); // To display metrics
-   const [problemType, setProblemType] = useState(null); 
-
+  const [problemType, setProblemType] = useState(null);
 
   const { toast } = useToast();
   const navigate = useNavigate();
 
-  // Check authentication on mount
-  useEffect(() => {
-    const token = localStorage.getItem('authToken');
-    if (!token) {
-      navigate('/login');
-    }
-  }, [navigate]);
+  // Auth state for UI
+  const [isAuthenticated, setIsAuthenticated] = useState(
+    !!localStorage.getItem("authToken")
+  );
 
-  // Reload the page when csvFile is removed (set to null)
-  
+  // Listen for login/logout changes
+  useEffect(() => {
+    const checkAuth = () =>
+      setIsAuthenticated(!!localStorage.getItem("authToken"));
+    window.addEventListener("storage", checkAuth);
+    return () => window.removeEventListener("storage", checkAuth);
+  }, []);
 
   const fetchCsvColumns = async (file, strategy, targetCol, sensitiveAttrs) => {
     // Check authentication before upload
-    const token = localStorage.getItem('authToken');
+    const token = localStorage.getItem("authToken");
     if (!token) {
       toast({
-        title: 'Authentication Required',
-        description: 'Please log in to upload a CSV.',
-        variant: 'destructive',
+        title: "Authentication Required",
+        description: "Please log in to upload a CSV.",
+        variant: "destructive",
       });
-      navigate('/login');
       return;
     }
     const formData = new FormData();
     formData.append("csv_file", file);
     formData.append("missing_strategy", strategy);
-    // Optionally send target_col and sensitive_attrs for backend defaults (not required for cleaning, but for future extensibility)
     if (targetCol) formData.append("target_col", targetCol);
-    if (sensitiveAttrs && sensitiveAttrs.length > 0) formData.append("sensitive_attrs", JSON.stringify(sensitiveAttrs));
+    if (sensitiveAttrs && sensitiveAttrs.length > 0)
+      formData.append("sensitive_attrs", JSON.stringify(sensitiveAttrs));
     try {
       const res = await axios.post(
         "http://localhost:8000/api/datasets/clean_csv/",
         formData,
         {
           headers: {
-            "Content-Type": "multipart/form-data",
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            Authorization: `Bearer ${token}`,
+            // Do NOT set Content-Type here; axios will handle it for FormData
           },
         }
       );
@@ -98,25 +98,29 @@ const UploadPage = () => {
     }
   };
   const triggerPreprocessing = async (target_col, initial_data_key = null) => {
-     if (isPreprocessed && preprocessedDataKey && problemType) {
-        console.log("Preprocessing already done for current selections. Skipping re-trigger.");
-        return;
+    if (isPreprocessed && preprocessedDataKey && problemType) {
+      console.log(
+        "Preprocessing already done for current selections. Skipping re-trigger."
+      );
+      return;
     }
     if (!targetColumn || selectedAttributes.length === 0) {
-        console.warn("Skipping preprocessing: Missing required inputs (Session ID, Target Column, or Sensitive Attributes).");
-        toast({
-            title: "Missing Information",
-            description: "Please ensure a CSV is cleaned, a target column, and sensitive attributes are selected.",
-            variant: "destructive",
-        });
-        return;
+      console.warn(
+        "Skipping preprocessing: Missing required inputs (Session ID, Target Column, or Sensitive Attributes)."
+      );
+      toast({
+        title: "Missing Information",
+        description:
+          "Please ensure a CSV is cleaned, a target column, and sensitive attributes are selected.",
+        variant: "destructive",
+      });
+      return;
     }
-       
+
     const formData = new FormData();
-     formData.append("session_id",initial_data_key || preprocessedDataKey);
+    formData.append("session_id", initial_data_key || preprocessedDataKey);
     formData.append("target_col", target_col);
-     formData.append("sensitive_attrs", JSON.stringify(selectedAttributes));
-   
+    formData.append("sensitive_attrs", JSON.stringify(selectedAttributes));
 
     try {
       const res = await axios.post(
@@ -138,7 +142,8 @@ const UploadPage = () => {
       console.error("Preprocessing failed:", err.response?.data || err);
       toast({
         title: "Preprocessing Failed",
-        description: "Check logs or input CSV."+ (err.response?.data?.error || ""),
+        description:
+          "Check logs or input CSV." + (err.response?.data?.error || ""),
         variant: "destructive",
       });
       setIsPreprocessed(false);
@@ -146,12 +151,21 @@ const UploadPage = () => {
       setProblemType(null);
     }
   };
-   const handleModelSelect = async (e) => {
+  const handleModelSelect = async (e) => {
     const model = e.target.value;
     setSelectedModel(model);
 
     // Debug log for session_id and selected_model
-    console.log("[DEBUG] handleModelSelect: preprocessedDataKey=", preprocessedDataKey, "selectedModel=", model, "isPreprocessed=", isPreprocessed, "problemType=", problemType);
+    console.log(
+      "[DEBUG] handleModelSelect: preprocessedDataKey=",
+      preprocessedDataKey,
+      "selectedModel=",
+      model,
+      "isPreprocessed=",
+      isPreprocessed,
+      "problemType=",
+      problemType
+    );
 
     if (!targetColumn) {
       toast({
@@ -173,10 +187,13 @@ const UploadPage = () => {
     if (!preprocessedDataKey) {
       toast({
         title: "Session ID Missing",
-        description: "Session ID is missing. Please re-upload and preprocess your data.",
+        description:
+          "Session ID is missing. Please re-upload and preprocess your data.",
         variant: "destructive",
       });
-      console.error("[ERROR] No session_id (preprocessedDataKey) at model training.");
+      console.error(
+        "[ERROR] No session_id (preprocessedDataKey) at model training."
+      );
       return;
     }
     if (!model) {
@@ -211,8 +228,11 @@ const UploadPage = () => {
 
       toast({
         title: "✅ Model Trained",
-        description: `${message}. Accuracy: ${metrics.accuracy ?? "N/A"}` +
-                     (metrics.r2_score !== undefined ? ` R2 Score: ${metrics.r2_score.toFixed(4)}` : ''),
+        description:
+          `${message}. Accuracy: ${metrics.accuracy ?? "N/A"}` +
+          (metrics.r2_score !== undefined
+            ? ` R2 Score: ${metrics.r2_score.toFixed(4)}`
+            : ""),
       });
 
       setModelMetrics(metrics);
@@ -225,8 +245,6 @@ const UploadPage = () => {
       });
     }
   };
-
- 
 
   // Trigger cleaning when CSV or missing strategy changes
   useEffect(() => {
@@ -246,11 +264,22 @@ const UploadPage = () => {
 
   // Only trigger preprocessing after cleaning is successful and user selects attributes/target
   useEffect(() => {
-    if (cleanedCSV && preprocessedDataKey && targetColumn && selectedAttributes.length > 0 && !isPreprocessed) {
+    if (
+      cleanedCSV &&
+      preprocessedDataKey &&
+      targetColumn &&
+      selectedAttributes.length > 0 &&
+      !isPreprocessed
+    ) {
       triggerPreprocessing(targetColumn);
     }
-  }, [cleanedCSV, preprocessedDataKey, targetColumn, selectedAttributes, isPreprocessed]);
-
+  }, [
+    cleanedCSV,
+    preprocessedDataKey,
+    targetColumn,
+    selectedAttributes,
+    isPreprocessed,
+  ]);
 
   const handleAttributeChange = (col) => {
     setSelectedAttributes((prev) =>
@@ -288,8 +317,6 @@ const UploadPage = () => {
       model_choice: selectedModel,
     });
   };
- 
- 
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 py-12">
@@ -327,10 +354,26 @@ const UploadPage = () => {
               <FileUploader
                 acceptedTypes=".csv"
                 maxSize={50}
-                onFileSelect={(file) => setCsvFile(file)}
+                onFileSelect={
+                  isAuthenticated ? (file) => setCsvFile(file) : undefined
+                }
                 selectedFile={csvFile}
-                placeholder="Drop your CSV file here or click to browse"
+                placeholder={
+                  isAuthenticated
+                    ? "Drop your CSV file here or click to browse"
+                    : "Login to upload CSV"
+                }
+                disabled={!isAuthenticated}
               />
+              {!isAuthenticated && (
+                <div className="mt-2 text-red-600 text-sm font-semibold">
+                  Please{" "}
+                  <a href="/login" className="underline text-blue-600">
+                    log in
+                  </a>{" "}
+                  to upload a CSV file.
+                </div>
+              )}
 
               <Label className="block mt-4 mb-2 text-sm font-medium text-gray-700">
                 Missing Value Strategy
@@ -391,10 +434,13 @@ const UploadPage = () => {
                     </select>
                   </div>
 
-                   {/* ✨ Display inferred problem type */}
+                  {/* ✨ Display inferred problem type */}
                   {problemType && (
                     <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200 text-sm text-blue-700 font-medium">
-                        Problem Type Detected: <Badge className="bg-blue-200 text-blue-800">{problemType.replace(/_/g, ' ').toUpperCase()}</Badge>
+                      Problem Type Detected:{" "}
+                      <Badge className="bg-blue-200 text-blue-800">
+                        {problemType.replace(/_/g, " ").toUpperCase()}
+                      </Badge>
                     </div>
                   )}
 
@@ -410,15 +456,22 @@ const UploadPage = () => {
                       disabled={!isPreprocessed || !problemType}
                     >
                       <option value="">-- Select Model --</option>
-                      {problemType === 'regression' && (
+                      {problemType === "regression" && (
                         <>
-                          <option value="linear_regression">Linear Regression</option>
-                          <option value="polynomial_regression">Polynomial Regression</option>
+                          <option value="linear_regression">
+                            Linear Regression
+                          </option>
+                          <option value="polynomial_regression">
+                            Polynomial Regression
+                          </option>
                         </>
                       )}
-                      {(problemType === 'binary_classification' || problemType === 'multi_class_classification') && (
+                      {(problemType === "binary_classification" ||
+                        problemType === "multi_class_classification") && (
                         <>
-                          <option value="logistic_regression">Logistic Regression</option>
+                          <option value="logistic_regression">
+                            Logistic Regression
+                          </option>
                           <option value="knn">K-Nearest Neighbors</option>
                           <option value="decision_tree">Decision Tree</option>
                           <option value="random_forest">Random Forest</option>
@@ -450,7 +503,10 @@ const UploadPage = () => {
                   </h4>
                   <ul className="text-sm text-yellow-800 list-disc list-inside">
                     {summaryItem("Strategy", cleaningSummary.strategy)}
-                    {summaryItem("Initial Shape", `(${cleaningSummary.initial_shape[0]} rows, ${cleaningSummary.initial_shape[1]} cols)`)}
+                    {summaryItem(
+                      "Initial Shape",
+                      `(${cleaningSummary.initial_shape[0]} rows, ${cleaningSummary.initial_shape[1]} cols)`
+                    )}
                     {summaryItem("Dropped Rows", cleaningSummary.dropped_rows)}
                     {summaryItem(
                       "Imputed Columns",
@@ -479,7 +535,7 @@ const UploadPage = () => {
                   </ul>
                 </div>
               )}
-             {modelMetrics && (
+              {modelMetrics && (
                 <div className="mt-6 bg-green-50 border border-green-300 p-4 rounded">
                   <h4 className="font-semibold text-green-800 mb-2">
                     Model Metrics
@@ -487,7 +543,8 @@ const UploadPage = () => {
                   <ul className="text-sm text-green-800 list-disc list-inside">
                     {Object.entries(modelMetrics).map(([key, value]) => (
                       <li key={key}>
-                        {key.replace(/_/g, ' ').toUpperCase()}: {typeof value === 'number' ? value.toFixed(4) : value}
+                        {key.replace(/_/g, " ").toUpperCase()}:{" "}
+                        {typeof value === "number" ? value.toFixed(4) : value}
                       </li>
                     ))}
                   </ul>
@@ -535,7 +592,13 @@ const UploadPage = () => {
         {/* Start Button */}
         <div className="text-center mt-8">
           <Button
-            disabled={!csvFile || !targetColumn || selectedAttributes.length === 0 || !isPreprocessed || !selectedModel} 
+            disabled={
+              !csvFile ||
+              !targetColumn ||
+              selectedAttributes.length === 0 ||
+              !isPreprocessed ||
+              !selectedModel
+            }
             className="px-12 py-4 bg-gradient-to-br from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
           >
             <Zap className="mr-3 h-5 w-5" />

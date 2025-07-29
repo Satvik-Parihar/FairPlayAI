@@ -1,55 +1,4 @@
-# from rest_framework.decorators import api_view
-# from rest_framework.response import Response
-# from rest_framework import status
-# from .serializers import AppUserSerializer
-# from .models import AppUser
-# from django.contrib.auth import authenticate
-# from django.http import JsonResponse
-# from django.views.decorators.csrf import csrf_exempt
-# import json
 
-# @api_view(['POST'])
-# def register_user(request):
-#     serializer = AppUserSerializer(data=request.data)
-#     if serializer.is_valid():
-#         serializer.save()
-#         return Response({'message': 'User registered successfully'}, status=status.HTTP_201_CREATED)
-#     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-# @csrf_exempt 
-# def login_user(request):
-#     # if request.method == "POST":
-#     #     data = json.loads(request.body)
-#     #     email = data.get("email")
-#     #     password = data.get("password")
-
-#     #     user = authenticate(request, username=email, password=password)
-
-#     #     if user is not None:
-#     #         return JsonResponse({
-#     #             "message": "Login successful",
-#     #             "user": {"email": user.email, "name": user.username}
-#     #         })
-#     #     else:
-#     #         return JsonResponse({"message": "Invalid email or password"}, status=401)
-#     # return JsonResponse({"message": "Invalid request method"}, status=400)
-#     # def login_user(request):
-    
-#     if request.method == "POST":
-#         data = json.loads(request.body)
-#         email = data.get("email")
-#         password = data.get("password")
-
-#         user = authenticate(request, username=email, password=password)
-
-#         if user is not None:
-#             return JsonResponse({
-#                 "message": "Login successful",
-#                 "user": {"email": user.email, "name": user.username}
-#             })
-#         else:
-#             return JsonResponse({"message": "Invalid email or password"}, status=401)
-#     return JsonResponse({"message": "Only POST requests allowed"}, status=400)
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import status
@@ -131,11 +80,30 @@ def login_user(request):
         return Response({'message': 'Email and password required'}, status=400)
 
     try:
+        from rest_framework_simplejwt.tokens import RefreshToken
+        from django.contrib.auth.models import User
         db, client = get_mongo_collection()
         user = db.appuser.find_one({'email': email})
 
         if user and check_password(password, user.get('password', '')):
-            return Response({'message': 'Login successful', 'user': {'name': user.get('name'), 'email': user.get('email')}}, status=200)
+            # Ensure a real Django user exists for JWT auth
+            django_user, created = User.objects.get_or_create(
+                username=user.get('email'),
+                defaults={'email': user.get('email')}
+            )
+            # Optionally update email if changed
+            if django_user.email != user.get('email'):
+                django_user.email = user.get('email')
+                django_user.save()
+
+            refresh = RefreshToken.for_user(django_user)
+            access_token = str(refresh.access_token)
+            return Response({
+                'message': 'Login successful',
+                'user': {'name': user.get('name'), 'email': user.get('email')},
+                'token': access_token,
+                'refresh': str(refresh),
+            }, status=200)
 
         return Response({'message': 'Invalid credentials'}, status=401)
     except Exception as e:
