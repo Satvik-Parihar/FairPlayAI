@@ -31,10 +31,33 @@ const UploadPage = () => {
   const [modelMetrics, setModelMetrics] = useState(null); // To display metrics
    const [problemType, setProblemType] = useState(null); 
 
+
   const { toast } = useToast();
   const navigate = useNavigate();
 
+  // Check authentication on mount
+  useEffect(() => {
+    const token = localStorage.getItem('authToken');
+    if (!token) {
+      navigate('/login');
+    }
+  }, [navigate]);
+
+  // Reload the page when csvFile is removed (set to null)
+  
+
   const fetchCsvColumns = async (file, strategy, targetCol, sensitiveAttrs) => {
+    // Check authentication before upload
+    const token = localStorage.getItem('authToken');
+    if (!token) {
+      toast({
+        title: 'Authentication Required',
+        description: 'Please log in to upload a CSV.',
+        variant: 'destructive',
+      });
+      navigate('/login');
+      return;
+    }
     const formData = new FormData();
     formData.append("csv_file", file);
     formData.append("missing_strategy", strategy);
@@ -48,6 +71,7 @@ const UploadPage = () => {
         {
           headers: {
             "Content-Type": "multipart/form-data",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
           },
         }
       );
