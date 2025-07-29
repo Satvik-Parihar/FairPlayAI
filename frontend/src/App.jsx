@@ -13,7 +13,7 @@ import NotFound from "./pages/NotFound";
 import RegisterPage from "./pages/RegisterPage";
 import ForgotPasswordPage from "./pages/ForgotPasswordPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
-import CleaningDashboard from "./pages/CleaningDashboard"; // Import the new component
+// import CleaningDashboard from "./pages/CleaningDashboard"; // Import the new component
 // import { Toaster } from "@/components/ui/toaster"; 
 
 // ✅ Sync user from Google/GitHub OAuth redirect
@@ -39,7 +39,7 @@ const App = () => (
             <Route index element={<LandingPage />} />
             <Route path="upload" element={<UploadPage />} />
             <Route path="report/:reportId?" element={<ReportPage />} />
-            <Route path="/clean-data/:report_id" element={<CleaningDashboard />} /> {/* New route */}
+            {/* <Route path="/clean-data/:report_id" element={<CleaningDashboard />} /> New route */}
         {/* Add a new route for attribute selection after cleaning */}
         <Route path="/select-attributes/:report_id" element={<div>Attribute Selection Page (Coming Soon)</div>} /> 
             <Route path="dashboard" element={<Dashboard />} />
