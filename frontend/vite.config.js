@@ -10,9 +10,13 @@ export default defineConfig({
     },
   },
   define: {
-  'process.env': {
-    VITE_API_BASE_URL: 'http://127.0.0.1:8000/api/analysis'
-  }
-},
-
+    'process.env': {
+      VITE_API_BASE_URL: 'http://127.0.0.1:8000/api/analysis',
+    },
+  },
+  server: {
+    proxy: {
+      '/api': 'http://127.0.0.1:8000',
+    },
+  },
 });

@@ -1,3 +1,5 @@
+from rest_framework.decorators import api_view, permission_classes
+
 
 import pandas as pd
 import io
@@ -13,6 +15,20 @@ from django.forms.models import model_to_dict # Not strictly needed if using ser
 from rest_framework.permissions import IsAuthenticated 
 from rest_framework.parsers import MultiPartParser, FormParser
 
+
+
+# --- GET /api/fairness/reports/<report_id>/ ---
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def get_report(request, report_id):
+    """Return the full MongoDB report document as JSON, or 404 if not found."""
+    report = AnalysisReport.get_report(report_id)
+    if not report:
+        return Response({"error": "Report not found."}, status=status.HTTP_404_NOT_FOUND)
+    # Convert ObjectId to string for JSON serialization
+    if "_id" in report:
+        report["_id"] = str(report["_id"])
+    return Response(report, status=status.HTTP_200_OK)
 class CsvUploadView(APIView):
     parser_classes = (MultiPartParser, FormParser)
     permission_classes = [IsAuthenticated]

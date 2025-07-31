@@ -26,6 +26,10 @@ def upload_clean_csv(request):
 
     try:
         df = pd.read_csv(file)
+        # Store the original filename in cache for later use in report
+        cache.set(f'{file.name}_session_id', None, timeout=300)  # Placeholder for reverse lookup if needed
+        cache.set(f'{file.name}_original_filename', file.name, timeout=300)
+        # Also store filename by session_id after it's generated (see below)
         initial_shape = df.shape
 
         cleaning_summary = {
@@ -117,7 +121,8 @@ def upload_clean_csv(request):
         # Generate a unique session ID and store cleaned data
         session_id = str(uuid.uuid4())
         cache.set(f'{session_id}_cleaned_df', df.to_json(), timeout=300) # Store as JSON string
-        
+        # Store the original filename by session_id for later report use
+        cache.set(f'{session_id}_original_filename', file.name, timeout=300)
         cleaned_csv_io = io.StringIO()
         df.to_csv(cleaned_csv_io, index=False)
 
@@ -216,9 +221,49 @@ def train_selected_model(request):
         from .model_selector import main as model_selector_main
         # Pass problem_type to model_selector_main
         model, y_pred, metrics = model_selector_main(df, encoded_feature_map, target_col, selected_model, problem_type)
+
+        # --- Fairness backend integration: create MongoDB report ---
+        # Import AnalysisReport from fairness.models
+        from fairness.models import AnalysisReport
+        # Get user_id if available (from request.user if authenticated, else None)
+        user_id = str(getattr(request.user, 'id', None)) if hasattr(request, 'user') and request.user and request.user.is_authenticated else None
+        # Try to get dataset name from cache (from upload_clean_csv step)
+        dataset_name = cache.get(f'{session_id}_original_filename')
+        if not dataset_name:
+            dataset_name = request.data.get('dataset_name') or request.data.get('filename') or session_id
+        from datetime import datetime
+        upload_date = datetime.utcnow().strftime('%Y-%m-%d')
+        import math
+
+        def sanitize_metrics(obj):
+            if isinstance(obj, dict):
+                return {str(k): sanitize_metrics(v) for k, v in obj.items()}
+            elif isinstance(obj, list):
+                return [sanitize_metrics(v) for v in obj]
+            elif isinstance(obj, float):
+                if math.isnan(obj) or math.isinf(obj):
+                    return None
+                return obj
+            else:
+                return obj
+
+        metrics = sanitize_metrics(metrics)
+        report_data = {
+            "selected_model": selected_model,
+            "problem_type": problem_type,
+            "metrics": metrics,
+            "session_id": session_id,
+            "target_col": target_col,
+            "dataset_name": dataset_name,
+            "upload_date": upload_date,
+            # Add more fields as needed
+        }
+        # Create report in MongoDB (returns string report_id)
+        report_id = AnalysisReport.create_report(user_id, report_data)
         return Response({
             "message": f"{selected_model} trained successfully for {problem_type} problem.",
-            "metrics": metrics
+            "metrics": metrics,
+            "report_id": report_id
         })
     except ValueError as e:
         return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)

@@ -40,16 +40,17 @@ const LoginPage = () => {
         password,
       });
 
-      // Store auth token for authentication (adjust key if backend uses a different property)
+      // Store tokens and user data based on 'Remember Me'
       const token = response.data.token || response.data.key || response.data.auth_token;
-      if (token) {
-        localStorage.setItem('authToken', token);
-      }
-
+      const refresh = response.data.refresh;
       const userData = JSON.stringify(response.data.user);
       if (rememberMe) {
+        if (token) localStorage.setItem('authToken', token);
+        if (refresh) localStorage.setItem('refreshToken', refresh);
         localStorage.setItem("user", userData);
       } else {
+        if (token) sessionStorage.setItem('authToken', token);
+        if (refresh) sessionStorage.setItem('refreshToken', refresh);
         sessionStorage.setItem("user", userData);
       }
 
@@ -252,8 +253,8 @@ const LoginPage = () => {
                   className="h-12 border-gray-200 hover:bg-gray-50"
                   onClick={() => window.location.href = "http://127.0.0.1:8000/api/auth/github/login/?next=http://localhost:3000"}
                 >
-                  <svg className="h-4 w-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M10 0C4.477 0 0 4.484 0 10.017c0 4.425 2.865 8.18 6.839 9.504..." clipRule="evenodd" />
+                  <svg className="h-4 w-4 mr-2" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M12 2C6.477 2 2 6.484 2 12.012c0 4.418 2.867 8.167 6.839 9.489.5.092.682-.217.682-.483 0-.237-.009-.868-.014-1.703-2.782.605-3.369-1.342-3.369-1.342-.454-1.155-1.11-1.463-1.11-1.463-.908-.62.069-.608.069-.608 1.004.07 1.532 1.032 1.532 1.032.892 1.529 2.341 1.088 2.91.833.091-.646.35-1.088.636-1.339-2.221-.253-4.555-1.112-4.555-4.945 0-1.092.39-1.987 1.029-2.686-.103-.254-.446-1.274.098-2.656 0 0 .84-.27 2.75 1.025A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.295 2.748-1.025 2.748-1.025.546 1.382.202 2.402.1 2.656.64.699 1.028 1.594 1.028 2.686 0 3.842-2.337 4.688-4.566 4.936.359.309.678.919.678 1.852 0 1.336-.012 2.417-.012 2.747 0 .268.18.579.688.481C19.135 20.175 22 16.426 22 12.012 22 6.484 17.523 2 12 2z"/>
                   </svg>
                   GitHub
                 </Button>

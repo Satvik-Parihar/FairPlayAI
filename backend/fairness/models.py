@@ -130,14 +130,23 @@ class AnalysisReport:
 
     @classmethod
     def create_report(cls, user_id, data, files=None):
-        result_id = cls.db.reports.insert_one({
-            **data,
+        def stringify_keys(obj):
+            if isinstance(obj, dict):
+                return {str(k): stringify_keys(v) for k, v in obj.items()}
+            elif isinstance(obj, list):
+                return [stringify_keys(v) for v in obj]
+            else:
+                return obj
+
+        safe_data = stringify_keys(data)
+        result = cls.db.reports.insert_one({
+            **safe_data,
             "user_id": user_id,
             "created_at": datetime.utcnow(),
             "status": "uploaded", # Initial status after upload
             "cleaning_info": {} # To store cleaning options and stats
         })
-        return str(result_id)
+        return str(result.inserted_id)
 
     @classmethod
     def get_report(cls, report_id):

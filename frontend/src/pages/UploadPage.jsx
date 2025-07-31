@@ -30,6 +30,8 @@ const UploadPage = () => {
   const [preprocessedDataKey, setPreprocessedDataKey] = useState(null); // 👈 New state for data_key
   const [modelMetrics, setModelMetrics] = useState(null); // To display metrics
   const [problemType, setProblemType] = useState(null);
+  const [reportId, setReportId] = useState(null); // Store report id for navigation
+  const [canStartAnalysis, setCanStartAnalysis] = useState(false); // Enable Start Analysis button after model metrics
 
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -71,7 +73,6 @@ const UploadPage = () => {
         {
           headers: {
             Authorization: `Bearer ${token}`,
-            // Do NOT set Content-Type here; axios will handle it for FormData
           },
         }
       );
@@ -86,6 +87,15 @@ const UploadPage = () => {
         description: "Data cleaned successfully.",
       });
     } catch (err) {
+      if (err.response && err.response.status === 401) {
+        toast.dismiss?.();
+        toast({
+          title: "Authentication Required",
+          description: "Please log in to start analysis.",
+          variant: "destructive",
+        });
+        return;
+      }
       console.error("Cleaning failed:", err.response?.data || err);
       toast.dismiss?.();
       setTimeout(() => {
@@ -97,31 +107,21 @@ const UploadPage = () => {
       }, 1500);
     }
   };
-  const triggerPreprocessing = async (target_col, initial_data_key = null) => {
-    if (isPreprocessed && preprocessedDataKey && problemType) {
-      console.log(
-        "Preprocessing already done for current selections. Skipping re-trigger."
-      );
-      return;
-    }
-    if (!targetColumn || selectedAttributes.length === 0) {
-      console.warn(
-        "Skipping preprocessing: Missing required inputs (Session ID, Target Column, or Sensitive Attributes)."
-      );
+
+  // Only call preprocessing when user clicks Continue
+  const handlePreprocess = async () => {
+    if (!preprocessedDataKey || !targetColumn || selectedAttributes.length === 0) {
       toast({
         title: "Missing Information",
-        description:
-          "Please ensure a CSV is cleaned, a target column, and sensitive attributes are selected.",
+        description: "Please ensure a CSV is cleaned, a target column, and sensitive attributes are selected.",
         variant: "destructive",
       });
       return;
     }
-
     const formData = new FormData();
-    formData.append("session_id", initial_data_key || preprocessedDataKey);
-    formData.append("target_col", target_col);
+    formData.append("session_id", preprocessedDataKey);
+    formData.append("target_col", targetColumn);
     formData.append("sensitive_attrs", JSON.stringify(selectedAttributes));
-
     try {
       const res = await axios.post(
         "http://localhost:8000/api/datasets/preprocess/",
@@ -142,8 +142,7 @@ const UploadPage = () => {
       console.error("Preprocessing failed:", err.response?.data || err);
       toast({
         title: "Preprocessing Failed",
-        description:
-          "Check logs or input CSV." + (err.response?.data?.error || ""),
+        description: "Check logs or input CSV." + (err.response?.data?.error || ""),
         variant: "destructive",
       });
       setIsPreprocessed(false);
@@ -154,6 +153,7 @@ const UploadPage = () => {
   const handleModelSelect = async (e) => {
     const model = e.target.value;
     setSelectedModel(model);
+    setCanStartAnalysis(false);
 
     // Debug log for session_id and selected_model
     console.log(
@@ -224,7 +224,7 @@ const UploadPage = () => {
         }
       );
 
-      const { metrics, message } = res.data;
+      const { metrics, message, report_id } = res.data;
 
       toast({
         title: "✅ Model Trained",
@@ -236,6 +236,11 @@ const UploadPage = () => {
       });
 
       setModelMetrics(metrics);
+      
+      
+      setReportId(report_id || null);
+      console.log("[DEBUG] Report ID:", report_id);
+      setCanStartAnalysis(true); // Enable Start AI Bias Analysis button
     } catch (err) {
       console.error("Model training failed:", err.response?.data || err);
       toast({
@@ -262,34 +267,17 @@ const UploadPage = () => {
     }
   }, [csvFile, missingStrategy]);
 
-  // Only trigger preprocessing after cleaning is successful and user selects attributes/target
-  useEffect(() => {
-    if (
-      cleanedCSV &&
-      preprocessedDataKey &&
-      targetColumn &&
-      selectedAttributes.length > 0 &&
-      !isPreprocessed
-    ) {
-      triggerPreprocessing(targetColumn);
-    }
-  }, [
-    cleanedCSV,
-    preprocessedDataKey,
-    targetColumn,
-    selectedAttributes,
-    isPreprocessed,
-  ]);
+  // Remove auto-triggering preprocessing. Only call when user clicks Continue.
 
   const handleAttributeChange = (col) => {
     setSelectedAttributes((prev) =>
       prev.includes(col) ? prev.filter((c) => c !== col) : [...prev, col]
     );
-    // Don't reset cleaning/preprocessing here; let useEffect handle it
+    setCanStartAnalysis(false);
   };
   const handleTargetColumnChange = (e) => {
     setTargetColumn(e.target.value);
-    // Don't reset cleaning/preprocessing here; let useEffect handle it
+    setCanStartAnalysis(false);
   };
   const handleDownload = () => {
     const blob = new Blob([cleanedCSV], { type: "text/csv" });
@@ -310,12 +298,12 @@ const UploadPage = () => {
     );
   };
   const handleStartAnalysis = async () => {
-    await axios.post("/api/datasets/analyze/", {
-      cleaned_csv,
-      sensitive_columns: selectedAttributes,
-      target_column: targetColumn,
-      model_choice: selectedModel,
-    });
+    // Navigate to report page after user clicks the button
+    if (reportId) {
+      navigate(`/report/${reportId}`);
+    } else {
+      navigate("/report");
+    }
   };
 
   return (
@@ -444,7 +432,15 @@ const UploadPage = () => {
                     </div>
                   )}
 
-                  <div className="mt-6">
+                  {/* Continue button for preprocessing */}
+                  <div className="mt-6 flex flex-col gap-4">
+                    <Button
+                      onClick={handlePreprocess}
+                      disabled={selectedAttributes.length === 0 || !targetColumn || !preprocessedDataKey || isPreprocessed}
+                      className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+                    >
+                      Continue
+                    </Button>
                     <Label className="block text-sm font-medium text-gray-700 mb-2">
                       Select Model for Training
                     </Label>
@@ -541,12 +537,28 @@ const UploadPage = () => {
                     Model Metrics
                   </h4>
                   <ul className="text-sm text-green-800 list-disc list-inside">
-                    {Object.entries(modelMetrics).map(([key, value]) => (
-                      <li key={key}>
-                        {key.replace(/_/g, " ").toUpperCase()}:{" "}
-                        {typeof value === "number" ? value.toFixed(4) : value}
-                      </li>
-                    ))}
+                    {Object.entries(modelMetrics).map(([key, value]) => {
+                      // Recursively render metric value(s) to handle deeply nested objects
+                      const renderMetricValue = (val) => {
+                        if (typeof val === "number") return isNaN(val) ? "N/A" : val.toFixed(4);
+                        if (val === null || val === undefined) return "N/A";
+                        if (typeof val === "object" && val !== null) {
+                          const subEntries = Object.entries(val);
+                          return subEntries.map(([k, v]) => {
+                            if (typeof v === "object" && v !== null) {
+                              return `${k}: { ${renderMetricValue(v)} }`;
+                            }
+                            return `${k}: ${typeof v === "number" ? (isNaN(v) ? "N/A" : v.toFixed(4)) : v}`;
+                          }).join(", ");
+                        }
+                        return val;
+                      };
+                      return (
+                        <li key={key}>
+                          {key.replace(/_/g, " ").toUpperCase()}: {renderMetricValue(value)}
+                        </li>
+                      );
+                    })}
                   </ul>
                 </div>
               )}
@@ -597,8 +609,11 @@ const UploadPage = () => {
               !targetColumn ||
               selectedAttributes.length === 0 ||
               !isPreprocessed ||
-              !selectedModel
+              !selectedModel ||
+              !reportId ||
+              !canStartAnalysis // Only enable after model metrics are set
             }
+            onClick={handleStartAnalysis}
             className="px-12 py-4 bg-gradient-to-br from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
           >
             <Zap className="mr-3 h-5 w-5" />

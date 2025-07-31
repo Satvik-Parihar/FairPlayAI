@@ -1,8 +1,6 @@
-
 // // import axios from 'axios';
 // // // const BASE_URL = import.meta.env.VITE_API_BASE_URL;
 // // const BASE_URL = "http://127.0.0.1:8000/api"; // ✅ not /api/analysis
-
 
 // // // Create axios instance with base configuration
 // // const api = axios.create({
@@ -199,18 +197,18 @@
 //     // Auth functions
 //     login,
 //     logout,
-    
+
 //     // Analysis functions
 //     uploadAndAnalyze,
 //     getReport,
-    
+
 //     // Future functions
 //     getAnalysisHistory,
 //     deleteAnalysis,
 //     exportReport,
 //   };
 // };
-import axios from 'axios';
+import axios from "axios";
 
 const BASE_URL = "http://127.0.0.1:8000/api/fairness/"; // Ensure this matches your Django API URL
 
@@ -219,14 +217,14 @@ const api = axios.create({
   baseURL: BASE_URL,
   timeout: 30000,
   headers: {
-    'Content-Type': 'application/json',
+    "Content-Type": "application/json",
   },
 });
 
 // Request interceptor to add auth token
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('auth_token');
+    const token = localStorage.getItem("auth_token");
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -242,8 +240,8 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      localStorage.removeItem('auth_token');
-      window.location.href = '/login';
+      localStorage.removeItem("auth_token");
+      window.location.href = "/login";
     }
     return Promise.reject(error);
   }
@@ -252,28 +250,33 @@ api.interceptors.response.use(
 export const useApi = () => {
   // Auth endpoints
   const login = async (email, password) => {
-    const response = await api.post('/auth/login/', { email, password }); // Ensure URL is correct
+    const response = await api.post("/auth/login/", { email, password }); // Ensure URL is correct
     if (response.data.token) {
-      localStorage.setItem('auth_token', response.data.token);
+      localStorage.setItem("auth_token", response.data.token);
     }
     return response.data;
   };
 
   const logout = () => {
-    localStorage.removeItem('auth_token');
-    window.location.href = '/login';
+    localStorage.removeItem("auth_token");
+    window.location.href = "/login";
   };
 
   // Analysis and Cleaning endpoints
-  const uploadAndAnalyze = async (formData, onUploadProgress) => { // Added onUploadProgress
+  const uploadAndAnalyze = async (formData, onUploadProgress) => {
+    // Added onUploadProgress
     try {
-      const response = await api.post('/upload-csv/', formData, { // Corrected endpoint to match views.py
+      const response = await api.post("/upload-csv/", formData, {
+        // Corrected endpoint to match views.py
         headers: {
-          'Content-Type': 'multipart/form-data',
+          "Content-Type": "multipart/form-data",
         },
-        onUploadProgress: (progressEvent) => { // Re-added progress tracking
+        onUploadProgress: (progressEvent) => {
+          // Re-added progress tracking
           if (onUploadProgress) {
-            const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+            const percentCompleted = Math.round(
+              (progressEvent.loaded * 100) / progressEvent.total
+            );
             onUploadProgress(percentCompleted);
           }
         },
@@ -287,15 +290,21 @@ export const useApi = () => {
 
   const getReport = async (reportId) => {
     try {
-      const response = await api.get(`/reports/${reportId}/`);
-      return response.data;
+      const token = localStorage.getItem("authToken");
+      const res = await axios.get(`/api/fairness/reports/${reportId}/`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      return res.data;
     } catch (error) {
       console.error("Failed to get report:", error);
       throw error;
     }
   };
 
-  const getCleaningStats = async (reportId) => { // New cleaning endpoint
+  const getCleaningStats = async (reportId) => {
+    // New cleaning endpoint
     try {
       const response = await api.get(`/clean-data/${reportId}/`);
       return response.data;
@@ -305,9 +314,12 @@ export const useApi = () => {
     }
   };
 
-  const applyCleaningChoices = async (reportId, cleaningChoices) => { // New cleaning endpoint
+  const applyCleaningChoices = async (reportId, cleaningChoices) => {
+    // New cleaning endpoint
     try {
-      const response = await api.post(`/clean-data/${reportId}/`, { cleaning_choices: cleaningChoices });
+      const response = await api.post(`/clean-data/${reportId}/`, {
+        cleaning_choices: cleaningChoices,
+      });
       return response.data;
     } catch (error) {
       console.error("Failed to apply cleaning choices:", error);
@@ -317,7 +329,7 @@ export const useApi = () => {
 
   // Keep existing endpoints for future use
   const getAnalysisHistory = async () => {
-    const response = await api.get('/analysis/history'); // Assuming this endpoint is correct
+    const response = await api.get("/analysis/history"); // Assuming this endpoint is correct
     return response.data;
   };
 
@@ -326,10 +338,10 @@ export const useApi = () => {
     return response.data;
   };
 
-  const exportReport = async (analysisId, format = 'pdf') => {
+  const exportReport = async (analysisId, format = "pdf") => {
     const response = await api.get(`/analysis/${analysisId}/export`, {
       params: { format },
-      responseType: 'blob',
+      responseType: "blob",
     });
     return response.data;
   };
@@ -338,13 +350,13 @@ export const useApi = () => {
     // Auth functions
     login,
     logout,
-    
+
     // Analysis and Cleaning functions
     uploadAndAnalyze,
     getReport,
-    getCleaningStats,      // Added
-    applyCleaningChoices,  // Added
-    
+    getCleaningStats, // Added
+    applyCleaningChoices, // Added
+
     // Future functions
     getAnalysisHistory,
     deleteAnalysis,
