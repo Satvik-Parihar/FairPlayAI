@@ -110,8 +110,9 @@ def main(df, mapping, target_col, selected_model=None, problem_type=None):
         metrics["demographic_parity"] = {}
         metrics["equalized_odds"] = {}
         metrics["calibration"] = {}
+        metrics["individual_fairness"] = {}
         if mapping:
-            from .fairness_metrics import equalized_odds, calibration
+            from .fairness_metrics import equalized_odds, calibration, individual_fairness
             for sensitive_col in mapping.keys():
                 # Try to recover the original (pre-encoded) sensitive attribute from df
                 if sensitive_col in df.columns:
@@ -151,12 +152,13 @@ def main(df, mapping, target_col, selected_model=None, problem_type=None):
                             rates[group] = (y_pred[mask] == 1).mean()
                 print(f"[DEBUG] Demographic parity rates by group for {sensitive_col}:", dict(rates))
                 metrics["demographic_parity"][sensitive_col] = demographic_parity(y_pred, sensitive_attr_test)
-                # Calculate Equalized Odds for this sensitive attribute
                 metrics["equalized_odds"][sensitive_col] = equalized_odds(y_pred, sensitive_attr_test, y_test)
-                # Calculate Calibration for this sensitive attribute
                 metrics["calibration"][sensitive_col] = calibration(y_pred, sensitive_attr_test, y_test)
+                # Calculate Individual Fairness for this sensitive attribute
+                metrics["individual_fairness"][sensitive_col] = individual_fairness(X_test, y_pred, sensitive_attr_test)
         else:
             metrics["demographic_parity"] = None
             metrics["equalized_odds"] = None
             metrics["calibration"] = None
+            metrics["individual_fairness"] = None
     return model, y_pred, metrics

@@ -40,20 +40,13 @@ const LoginPage = () => {
         password,
       });
 
-      // Store tokens and user data based on 'Remember Me'
+      // Always use localStorage for tokens and user info to prevent auto logout
       const token = response.data.token || response.data.key || response.data.auth_token;
       const refresh = response.data.refresh;
       const userData = JSON.stringify(response.data.user);
-      if (rememberMe) {
-        if (token) localStorage.setItem('authToken', token);
-        if (refresh) localStorage.setItem('refreshToken', refresh);
-        localStorage.setItem("user", userData);
-      } else {
-        if (token) sessionStorage.setItem('authToken', token);
-        if (refresh) sessionStorage.setItem('refreshToken', refresh);
-        sessionStorage.setItem("user", userData);
-      }
-
+      if (token) localStorage.setItem('authToken', token);
+      if (refresh) localStorage.setItem('refreshToken', refresh);
+      localStorage.setItem("user", userData);
       setUser(response.data.user);
 
       toast({

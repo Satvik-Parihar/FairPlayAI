@@ -110,10 +110,15 @@ const UploadPage = () => {
 
   // Only call preprocessing when user clicks Continue
   const handlePreprocess = async () => {
-    if (!preprocessedDataKey || !targetColumn || selectedAttributes.length === 0) {
+    if (
+      !preprocessedDataKey ||
+      !targetColumn ||
+      selectedAttributes.length === 0
+    ) {
       toast({
         title: "Missing Information",
-        description: "Please ensure a CSV is cleaned, a target column, and sensitive attributes are selected.",
+        description:
+          "Please ensure a CSV is cleaned, a target column, and sensitive attributes are selected.",
         variant: "destructive",
       });
       return;
@@ -142,7 +147,8 @@ const UploadPage = () => {
       console.error("Preprocessing failed:", err.response?.data || err);
       toast({
         title: "Preprocessing Failed",
-        description: "Check logs or input CSV." + (err.response?.data?.error || ""),
+        description:
+          "Check logs or input CSV." + (err.response?.data?.error || ""),
         variant: "destructive",
       });
       setIsPreprocessed(false);
@@ -236,8 +242,7 @@ const UploadPage = () => {
       });
 
       setModelMetrics(metrics);
-      
-      
+
       setReportId(report_id || null);
       console.log("[DEBUG] Report ID:", report_id);
       setCanStartAnalysis(true); // Enable Start AI Bias Analysis button
@@ -422,25 +427,29 @@ const UploadPage = () => {
                     </select>
                   </div>
 
-                  {/* ✨ Display inferred problem type */}
-                  {problemType && (
-                    <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200 text-sm text-blue-700 font-medium">
-                      Problem Type Detected:{" "}
-                      <Badge className="bg-blue-200 text-blue-800">
-                        {problemType.replace(/_/g, " ").toUpperCase()}
-                      </Badge>
-                    </div>
-                  )}
-
                   {/* Continue button for preprocessing */}
                   <div className="mt-6 flex flex-col gap-4">
                     <Button
                       onClick={handlePreprocess}
-                      disabled={selectedAttributes.length === 0 || !targetColumn || !preprocessedDataKey || isPreprocessed}
+                      disabled={
+                        selectedAttributes.length === 0 ||
+                        !targetColumn ||
+                        !preprocessedDataKey ||
+                        isPreprocessed
+                      }
                       className="w-full bg-blue-600 hover:bg-blue-700 text-white"
                     >
                       Continue
                     </Button>
+                    {/* ✨ Display inferred problem type */}
+                    {problemType && (
+                      <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200 text-sm text-blue-700 font-medium">
+                        Problem Type Detected:{" "}
+                        <Badge className="bg-blue-200 text-blue-800">
+                          {problemType.replace(/_/g, " ").toUpperCase()}
+                        </Badge>
+                      </div>
+                    )}
                     <Label className="block text-sm font-medium text-gray-700 mb-2">
                       Select Model for Training
                     </Label>
@@ -538,24 +547,38 @@ const UploadPage = () => {
                   </h4>
                   <ul className="text-sm text-green-800 list-disc list-inside">
                     {Object.entries(modelMetrics).map(([key, value]) => {
+                      // console.log("[DEBUG] Model Metric:", key, value);
+                      if (key =="individual_fairness" || key == "calibration" || key == "equalized_odds" || key == "demographic_parity"){
+                        return null;
+                      }
                       // Recursively render metric value(s) to handle deeply nested objects
                       const renderMetricValue = (val) => {
-                        if (typeof val === "number") return isNaN(val) ? "N/A" : val.toFixed(4);
+                        if (typeof val === "number")
+                          return isNaN(val) ? "N/A" : val.toFixed(4);
                         if (val === null || val === undefined) return "N/A";
                         if (typeof val === "object" && val !== null) {
                           const subEntries = Object.entries(val);
-                          return subEntries.map(([k, v]) => {
-                            if (typeof v === "object" && v !== null) {
-                              return `${k}: { ${renderMetricValue(v)} }`;
-                            }
-                            return `${k}: ${typeof v === "number" ? (isNaN(v) ? "N/A" : v.toFixed(4)) : v}`;
-                          }).join(", ");
+                          return subEntries
+                            .map(([k, v]) => {
+                              if (typeof v === "object" && v !== null) {
+                                return `${k}: { ${renderMetricValue(v)} }`;
+                              }
+                              return `${k}: ${
+                                typeof v === "number"
+                                  ? isNaN(v)
+                                    ? "N/A"
+                                    : v.toFixed(4)
+                                  : v
+                              }`;
+                            })
+                            .join(", ");
                         }
                         return val;
                       };
                       return (
                         <li key={key}>
-                          {key.replace(/_/g, " ").toUpperCase()}: {renderMetricValue(value)}
+                          {key.replace(/_/g, " ").toUpperCase()}:{" "}
+                          {renderMetricValue(value)}
                         </li>
                       );
                     })}

@@ -174,6 +174,30 @@
 //     }
 //   };
 
+//   const getCleaningStats = async (reportId) => {
+//     // New cleaning endpoint
+//     try {
+//       const response = await api.get(`/clean-data/${reportId}/`);
+//       return response.data;
+//     } catch (error) {
+//       console.error("Failed to fetch cleaning stats:", error);
+//       throw error;
+//     }
+//   };
+
+//   const applyCleaningChoices = async (reportId, cleaningChoices) => {
+//     // New cleaning endpoint
+//     try {
+//       const response = await api.post(`/clean-data/${reportId}/`, {
+//         cleaning_choices: cleaningChoices,
+//       });
+//       return response.data;
+//     } catch (error) {
+//       console.error("Failed to apply cleaning choices:", error);
+//       throw error;
+//     }
+//   };
+
 //   // Keep existing endpoints for future use
 //   const getAnalysisHistory = async () => {
 //     const response = await api.get('/analysis/history');
@@ -198,9 +222,11 @@
 //     login,
 //     logout,
 
-//     // Analysis functions
+//     // Analysis and Cleaning functions
 //     uploadAndAnalyze,
 //     getReport,
+//     getCleaningStats, // Added
+//     applyCleaningChoices, // Added
 
 //     // Future functions
 //     getAnalysisHistory,
@@ -235,30 +261,62 @@ api.interceptors.request.use(
   }
 );
 
-// Response interceptor for error handling
+// Refresh access token using refresh token
+const refreshAccessToken = async () => {
+  const refresh = localStorage.getItem("refresh_token");
+  if (!refresh) return null;
+  try {
+    const response = await api.post("/auth/token/refresh/", { refresh });
+    if (response.data.access) {
+      localStorage.setItem("auth_token", response.data.access);
+      return response.data.access;
+    }
+    return null;
+  } catch (error) {
+    localStorage.removeItem("auth_token");
+    localStorage.removeItem("refresh_token");
+    window.location.href = "/login";
+    return null;
+  }
+};
+
+// Response interceptor for error handling and auto-refresh
 api.interceptors.response.use(
   (response) => response,
-  (error) => {
-    if (error.response?.status === 401) {
-      localStorage.removeItem("auth_token");
-      window.location.href = "/login";
+  async (error) => {
+    const originalRequest = error.config;
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      originalRequest._retry = true;
+      const newToken = await refreshAccessToken();
+      if (newToken) {
+        originalRequest.headers["Authorization"] = `Bearer ${newToken}`;
+        return api(originalRequest);
+      } else {
+        localStorage.removeItem("auth_token");
+        localStorage.removeItem("refresh_token");
+        window.location.href = "/login";
+      }
     }
     return Promise.reject(error);
   }
 );
 
 export const useApi = () => {
-  // Auth endpoints
+  // Login: store both access and refresh tokens
   const login = async (email, password) => {
-    const response = await api.post("/auth/login/", { email, password }); // Ensure URL is correct
-    if (response.data.token) {
-      localStorage.setItem("auth_token", response.data.token);
+    const response = await api.post("/auth/login/", { email, password });
+    if (response.data.access) {
+      localStorage.setItem("auth_token", response.data.access);
+    }
+    if (response.data.refresh) {
+      localStorage.setItem("refresh_token", response.data.refresh);
     }
     return response.data;
   };
 
   const logout = () => {
     localStorage.removeItem("auth_token");
+    localStorage.removeItem("refresh_token");
     window.location.href = "/login";
   };
 

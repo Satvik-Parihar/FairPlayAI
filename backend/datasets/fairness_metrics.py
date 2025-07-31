@@ -1,3 +1,44 @@
+def individual_fairness(X, y_pred, sensitive_features=None, k=5):
+    """
+    Computes individual fairness for classification models.
+    For each sample, finds its k nearest neighbors (by features) and compares predicted outcomes.
+    Returns the average similarity of predictions among similar individuals.
+    If sensitive_features is provided, returns per-group scores.
+    """
+    import numpy as np
+    from sklearn.metrics import pairwise_distances
+    if isinstance(X, pd.DataFrame):
+        X = X.values
+    if isinstance(y_pred, pd.Series):
+        y_pred = y_pred.values
+    n = len(X)
+    if n < 2:
+        return np.nan
+    # Compute pairwise distances
+    dists = pairwise_distances(X)
+    scores = []
+    for i in range(n):
+        # Exclude self
+        idx = np.argsort(dists[i])[1:k+1]
+        neighbors = y_pred[idx]
+        # Similarity: fraction of neighbors with same prediction
+        sim = np.mean(neighbors == y_pred[i])
+        scores.append(sim)
+    overall_score = float(np.mean(scores))
+    # If sensitive_features provided, compute per-group scores
+    if sensitive_features is not None:
+        if isinstance(sensitive_features, pd.Series):
+            sensitive_features = sensitive_features.values
+        groups = np.unique(sensitive_features)
+        group_scores = {}
+        for group in groups:
+            mask = (sensitive_features == group)
+            if np.sum(mask) == 0:
+                group_scores[group] = np.nan
+            else:
+                group_scores[group] = float(np.mean(np.array(scores)[mask]))
+        return group_scores
+    return overall_score
 import numpy as np
 import pandas as pd
 
