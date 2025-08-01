@@ -248,6 +248,55 @@ def train_selected_model(request):
                 return obj
 
         metrics = sanitize_metrics(metrics)
+
+        # --- Compute overall_fairness_score ---
+        def mean_of_metric(val):
+            # Accepts a float or dict of floats, returns mean of all numeric values (ignores None)
+            import numbers
+            if isinstance(val, numbers.Number):
+                return float(val)
+            elif isinstance(val, dict):
+                vals = [v for v in val.values() if isinstance(v, numbers.Number) and v is not None]
+                if vals:
+                    return float(sum(vals)) / len(vals)
+            return None
+
+        fairness_keys = ["demographic_parity", "equalized_odds", "calibration", "individual_fairness"]
+        fairness_scores = []
+        for key in fairness_keys:
+            v = metrics.get(key)
+            m = mean_of_metric(v)
+            if m is not None and not math.isnan(m):
+                # Clamp to [0, 1] if needed
+                m = max(0.0, min(1.0, m))
+                fairness_scores.append(m)
+        if fairness_scores:
+            overall_fairness_score = sum(fairness_scores) / len(fairness_scores)
+            # Optionally scale to 0-10 for frontend display
+            overall_fairness_score_10 = round(overall_fairness_score * 10, 2)
+        else:
+            overall_fairness_score_10 = None
+
+        # --- Compute bias_detected list ---
+        # We'll use demographic_parity as the bias score per attribute (can be changed if needed)
+        bias_detected = []
+        dp = metrics.get("demographic_parity")
+        if isinstance(dp, dict):
+            for attr, score in dp.items():
+                if score is None or (isinstance(score, float) and math.isnan(score)):
+                    continue
+                # Lower score = less bias, so invert for risk: high risk if score < 0.5
+                if score < 0.5:
+                    severity = "high"
+                elif score < 0.75:
+                    severity = "medium"
+                else:
+                    severity = "low"
+                bias_detected.append({
+                    "attribute": attr,
+                    "score": score,
+                    "severity": severity
+                })
         report_data = {
             "selected_model": selected_model,
             "problem_type": problem_type,
@@ -256,6 +305,8 @@ def train_selected_model(request):
             "target_col": target_col,
             "dataset_name": dataset_name,
             "upload_date": upload_date,
+            "overall_fairness_score": overall_fairness_score_10,
+            "bias_detected": bias_detected,
             # Add more fields as needed
         }
         # Create report in MongoDB (returns string report_id)
@@ -263,6 +314,8 @@ def train_selected_model(request):
         return Response({
             "message": f"{selected_model} trained successfully for {problem_type} problem.",
             "metrics": metrics,
+            "overall_fairness_score": overall_fairness_score_10,
+            "bias_detected": bias_detected,
             "report_id": report_id
         })
     except ValueError as e:
