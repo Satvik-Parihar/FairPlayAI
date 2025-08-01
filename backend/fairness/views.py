@@ -28,6 +28,16 @@ def get_report(request, report_id):
     # Convert ObjectId to string for JSON serialization
     if "_id" in report:
         report["_id"] = str(report["_id"])
+    # Ensure problem_type is present in the report
+    if "problem_type" not in report:
+        # Try to infer from metrics if possible
+        metrics = report.get("metrics", {})
+        # Heuristic: if regression_fairness in metrics, it's regression
+        if "regression_fairness" in metrics:
+            report["problem_type"] = "regression"
+        else:
+            # Default to classification if unsure
+            report["problem_type"] = "classification"
     return Response(report, status=status.HTTP_200_OK)
 class CsvUploadView(APIView):
     parser_classes = (MultiPartParser, FormParser)

@@ -60,7 +60,8 @@ const ReportPage = () => {
   const { getReport } = useApi();
   const { toast } = useToast();
   const reportRef = useRef();
-  // Track which calibration attributes are expanded
+  const problemType =
+    reportData && reportData.problem_type ? reportData.problem_type : null;
   const [calibrationExpanded, setCalibrationExpanded] = useState({});
 
   const fetchReport = useCallback(async () => {
@@ -203,25 +204,45 @@ const ReportPage = () => {
                   </p>
                 </div>
                 <div className="text-right">
-                  <div className="text-4xl font-bold text-blue-600 mb-1">
-                    {overallFairnessScore}/10
-                  </div>
-                  <div className="flex items-center space-x-1">
-                    {getScoreIcon(
-                      typeof overallFairnessScore === "number"
-                        ? overallFairnessScore / 10
-                        : 0
-                    )}
-                    <span className="text-sm text-gray-500">
-                      {typeof overallFairnessScore === "number"
-                        ? overallFairnessScore >= 8
-                          ? "Good"
-                          : overallFairnessScore >= 6
-                          ? "Moderate"
-                          : "Needs Improvement"
-                        : "N/A"}
-                    </span>
-                  </div>
+                  {(() => {
+                    let score = overallFairnessScore;
+                    if (typeof score !== "number") {
+                      score = parseFloat(score);
+                    }
+                    let colorClass = "text-red-700 bg-red-50";
+                    if (!isNaN(score)) {
+                      if (score >= 8) {
+                        colorClass = "text-green-700 bg-green-50";
+                      } else if (score >= 6) {
+                        colorClass = "text-yellow-700 bg-yellow-50";
+                      }
+                    }
+                    return (
+                      <>
+                        <div
+                          className={`text-4xl font-bold mb-1 inline-block px-4 py-2 rounded ${colorClass}`}
+                        >
+                          {!isNaN(score) ? score.toFixed(2) : "N/A"}/10
+                        </div>
+                        <div className="flex items-center space-x-1 mt-1">
+                          {getScoreIcon(
+                            typeof overallFairnessScore === "number"
+                              ? overallFairnessScore / 10
+                              : 0
+                          )}
+                          <span className="text-sm text-gray-500">
+                            {typeof overallFairnessScore === "number"
+                              ? overallFairnessScore >= 8
+                                ? "Good"
+                                : overallFairnessScore >= 6
+                                ? "Moderate"
+                                : "Needs Improvement"
+                              : "N/A"}
+                          </span>
+                        </div>
+                      </>
+                    );
+                  })()}
                 </div>
               </div>
             </CardContent>
@@ -230,408 +251,536 @@ const ReportPage = () => {
 
         {/* Fairness Metrics */}
 
-        <div className="grid lg:grid-cols-4 md:grid-cols-2 gap-6 mb-8">
-         
-          <div className="col-span-1">
-            <div className="bg-white rounded-xl shadow p-5 h-full flex flex-col justify-between border border-blue-200 max-h-[520px]">
-              <div className="flex-1 overflow-y-auto">
-                <div className="mb-2 flex items-center gap-2">
-                  <span className="text-lg font-semibold text-blue-700">
-                    Demographic Parity
-                  </span>
-                  <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded">
-                    Fairness
-                  </span>
-                </div>
-                <div className="mb-2 text-sm text-gray-600">
-                  Equal positive prediction rates across groups
-                </div>
-                <div className="mt-2">
-                  {metrics.demographic_parity &&
-                  typeof metrics.demographic_parity === "object" &&
-                  Object.keys(metrics.demographic_parity).length > 0 ? (
-                    <ul className="list-disc ml-4">
-                      {Object.entries(metrics.demographic_parity).map(
-                        ([attr, val]) => (
-                          <li key={attr} className="mb-1 flex items-center">
-                            <span className="font-medium text-gray-800 mr-2">
-                              {attr}:
-                            </span>
-                            <span className="bg-blue-50 text-blue-700 px-2 py-0.5 rounded text-sm font-mono">
-                              {typeof val === "number" && !isNaN(val)
-                                ? val.toFixed(4)
-                                : "N/A"}
-                            </span>
-                          </li>
-                        )
-                      )}
-                    </ul>
-                  ) : (
-                    <span className="text-gray-400">N/A</span>
+       {problemType === "regression" ? (
+          // Regression fairness metrics block
+          <Card className="mb-8">
+            <CardHeader>
+              <CardTitle>Regression Fairness by Sensitive Attribute</CardTitle>
+              <CardDescription>
+                Group-wise fairness metrics for regression
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {metrics.regression_fairness &&
+              Object.keys(metrics.regression_fairness).length > 0 ? (
+                <>
+                  {Object.entries(metrics.regression_fairness).map(
+                    ([attr, groupMetrics]) => (
+                      <div key={attr} className="mb-6">
+                        <div className="font-semibold text-blue-700 mb-2">
+                          {attr}
+                        </div>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                          {Object.entries(groupMetrics).map(
+                            ([metricName, values]) => (
+                              <div key={metricName}>
+                                <div className="text-xs text-gray-500 font-medium mb-1">
+                                  {metricName.replace(/_/g, " ")}
+                                </div>
+                                <ul className="ml-2">
+                                  {values && typeof values === "object" ? (
+                                    Object.entries(values).map(
+                                      ([group, val]) => {
+                                        let colorClass =
+                                          "bg-blue-50 text-blue-700";
+                                        if (
+                                          metricName === "group_r2" &&
+                                          val !== null &&
+                                          val !== undefined &&
+                                          !isNaN(val)
+                                        ) {
+                                          if (val > 0.5) {
+                                            colorClass =
+                                              "bg-green-100 text-green-700";
+                                          } else if (val >= 0) {
+                                            colorClass =
+                                              "bg-yellow-100 text-yellow-700";
+                                          } else {
+                                            colorClass =
+                                              "bg-red-100 text-red-700";
+                                          }
+                                        }
+                                        return (
+                                          <li key={group} className="text-sm">
+                                            <span className="font-mono text-gray-700">
+                                              {group}:
+                                            </span>{" "}
+                                            <span
+                                              className={`${colorClass} px-2 py-0.5 rounded font-mono`}
+                                            >
+                                              {val === null ||
+                                              val === undefined ||
+                                              isNaN(val)
+                                                ? "N/A"
+                                                : Number(val).toFixed(4)}
+                                            </span>
+                                          </li>
+                                        );
+                                      }
+                                    )
+                                  ) : (
+                                    <li>N/A</li>
+                                  )}
+                                </ul>
+                              </div>
+                            )
+                          )}
+                        </div>
+                      </div>
+                    )
                   )}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          
-          <div className="col-span-1">
-            <div className="bg-white rounded-xl shadow p-5 h-full flex flex-col justify-between border border-blue-200 max-h-[520px]">
-              <div className="flex-1 overflow-y-auto">
-                <div className="mb-2 flex items-center gap-2">
-                  <span className="text-lg font-semibold text-blue-700">
-                    Equalized Odds
-                  </span>
-                  <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded">
-                    Fairness
-                  </span>
-                </div>
-                <div className="mb-2 text-sm text-gray-600">
-                  Equal true/false positive rates across groups
-                </div>
-                <div className="mt-2">
-                  {metrics.equalized_odds &&
-                  typeof metrics.equalized_odds === "object" &&
-                  Object.keys(metrics.equalized_odds).length > 0 ? (
-                    <ul className="list-disc ml-4">
-                      {Object.entries(metrics.equalized_odds).map(
-                        ([attr, val]) => (
-                          <li key={attr} className="mb-1 flex items-center">
-                            <span className="font-medium text-gray-800 mr-2">
-                              {attr}:
-                            </span>
-                            <span className="bg-blue-50 text-blue-700 px-2 py-0.5 rounded text-sm font-mono">
-                              {typeof val === "number" && !isNaN(val)
-                                ? val.toFixed(4)
-                                : "N/A"}
-                            </span>
-                          </li>
-                        )
-                      )}
-                    </ul>
-                  ) : (
-                    <span className="text-gray-400">N/A</span>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          
-          <div className="col-span-1">
-            <div className="bg-white rounded-xl shadow p-5 h-full flex flex-col justify-between border border-blue-200 max-h-[520px]">
-              <div className="flex-1 overflow-y-auto">
-                <div className="mb-2 flex items-center gap-2">
-                  <span className="text-lg font-semibold text-blue-700">
-                    Calibration
-                  </span>
-                  <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded">
-                    Fairness
-                  </span>
-                </div>
-                <div className="mb-2 text-sm text-gray-600">
-                  Predicted probabilities match actual outcomes
-                </div>
-                <div className="mt-2">
-                  {metrics.calibration &&
-                  typeof metrics.calibration === "object" &&
-                  Object.keys(metrics.calibration).length > 0 ? (
-                    <ul className="list-disc ml-4">
-                      {Object.entries(metrics.calibration).map(
-                        ([attr, val]) => {
-                          let verdict = "N/A";
-                          let explanation = "";
-                          let overallScore = null;
-
-                          if (typeof val === "number" && !isNaN(val)) {
-                            overallScore = val;
-                            verdict =
-                              val >= 0.8
-                                ? "Well-calibrated"
-                                : val >= 0.6
-                                ? "Moderate calibration"
-                                : "Poor calibration";
-                            explanation = `Predictions for '${attr}' are ${verdict.toLowerCase()}.`;
-                          } else if (typeof val === "object" && val !== null) {
-                            const scores = Object.values(val).filter(
-                              (v) => typeof v === "number" && !isNaN(v)
-                            );
-                            if (scores.length > 0) {
-                              const mean =
-                                scores.reduce((a, b) => a + b, 0) /
-                                scores.length;
-                              const mae =
-                                scores.reduce(
-                                  (a, b) => a + Math.abs(b - 0.5),
-                                  0
-                                ) / scores.length;
-                              overallScore = 1 - mae * 2;
-                              verdict =
-                                overallScore >= 0.8
-                                  ? "Well-calibrated"
-                                  : overallScore >= 0.6
-                                  ? "Moderate calibration"
-                                  : "Poor calibration";
-                              explanation = `Predicted probabilities for '${attr}' ${
-                                verdict === "Well-calibrated"
-                                  ? "closely match"
-                                  : verdict === "Moderate calibration"
-                                  ? "somewhat match"
-                                  : "do not match"
-                              } actual outcomes.`;
-                            } else {
-                              verdict = "N/A";
-                              explanation = `No calibration data available for '${attr}'.`;
+                  {/* Overall Fairness Score for Regression */}
+                  {typeof metrics.overall_fairness_score === "number" &&
+                    !isNaN(metrics.overall_fairness_score) && (
+                      <div className="mt-6">
+                        <div className="text-base font-semibold text-gray-800 mb-1">
+                          Overall Fairness Score
+                        </div>
+                        <div className="text-sm text-gray-600 mb-2">
+                          Aggregated fairness score across sensitive attributes.
+                          Higher is better.
+                        </div>
+                        {(() => {
+                          let score = metrics.overall_fairness_score;
+                          if (typeof score !== "number") {
+                            score = parseFloat(score);
+                          }
+                          let colorClass = "bg-red-50 text-red-700";
+                          if (!isNaN(score)) {
+                            if (score >= 8) {
+                              colorClass = "bg-green-50 text-green-700";
+                            } else if (score >= 6) {
+                              colorClass = "bg-yellow-50 text-yellow-700";
                             }
                           }
-
-                          const bins =
-                            typeof val === "object" && val !== null
-                              ? Object.entries(val)
-                              : [];
-                          const showAll = calibrationExpanded[attr] || false;
-                          const displayBins = showAll ? bins : bins.slice(0, 5);
-
                           return (
-                            <li key={attr} className="mb-3">
-                              <div className="flex items-center mb-1">
-                                <span className="font-medium text-gray-800 mr-2">
-                                  {attr}:
-                                </span>
-                                <span
-                                  className={`px-2 py-0.5 rounded text-xs font-semibold ${
-                                    verdict === "Well-calibrated"
-                                      ? "bg-green-100 text-green-700"
-                                      : verdict === "Moderate calibration"
-                                      ? "bg-yellow-100 text-yellow-700"
-                                      : verdict === "Poor calibration"
-                                      ? "bg-red-100 text-red-700"
-                                      : "bg-gray-100 text-gray-500"
-                                  }`}
-                                >
-                                  {verdict}
-                                </span>
-                                {overallScore !== null && (
-                                  <span className="ml-2 text-xs text-gray-500">
-                                    Score: {overallScore.toFixed(2)}
-                                  </span>
-                                )}
-                              </div>
-                              <div className="mb-1 text-xs text-gray-600">
-                                {explanation}
-                              </div>
-                              {typeof val === "number" && !isNaN(val) ? (
-                                <span className="bg-blue-50 text-blue-700 px-2 py-0.5 rounded text-sm font-mono">
-                                  {val.toFixed(4)}
-                                </span>
-                              ) : typeof val === "object" && val !== null ? (
-                                <>
-                                  <ul className="ml-4 list-disc">
-                                    {displayBins.map(([bin, score]) => (
-                                      <li key={bin} className="text-xs">
-                                        <span className="font-mono text-gray-700">
-                                          {bin}:
-                                        </span>{" "}
-                                        <span className="bg-blue-50 text-blue-700 px-2 py-0.5 rounded font-mono">
-                                          {typeof score === "number" &&
-                                          !isNaN(score)
-                                            ? score.toFixed(4)
-                                            : "N/A"}
-                                        </span>
-                                      </li>
-                                    ))}
-                                  </ul>
-                                  {bins.length > 5 && (
-                                    <button
-                                      className="text-xs text-blue-600 underline ml-4 mt-1"
-                                      onClick={() =>
-                                        setCalibrationExpanded((prev) => ({
-                                          ...prev,
-                                          [attr]: !showAll,
-                                        }))
-                                      }
-                                    >
-                                      {showAll
-                                        ? "Show Less"
-                                        : `Show ${bins.length - 5} More`}
-                                    </button>
-                                  )}
-                                </>
-                              ) : (
-                                <span className="bg-blue-50 text-blue-700 px-2 py-0.5 rounded text-sm font-mono">
-                                  N/A
-                                </span>
-                              )}
-                            </li>
+                            <div
+                              className={`inline-block ${colorClass} px-3 py-1 rounded text-lg font-mono shadow`}
+                            >
+                              {!isNaN(score) ? score.toFixed(4) : "N/A"}
+                            </div>
                           );
-                        }
-                      )}
-                    </ul>
-                  ) : (
-                    <span className="text-gray-400">N/A</span>
-                  )}
+                        })()}
+                      </div>
+                    )}
+                </>
+              ) : (
+                <div className="text-gray-500">
+                  No regression fairness metrics available.
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        ) :
+         (
+          <div className="grid lg:grid-cols-4 md:grid-cols-2 gap-6 mb-8">
+            <div className="col-span-1">
+              <div className="bg-white rounded-xl shadow p-5 h-full flex flex-col justify-between border border-blue-200 max-h-[520px]">
+                <div className="flex-1 overflow-y-auto">
+                  <div className="mb-2 flex items-center gap-2">
+                    <span className="text-lg font-semibold text-blue-700">
+                      Demographic Parity
+                    </span>
+                    <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded">
+                      Fairness
+                    </span>
+                  </div>
+                  <div className="mb-2 text-sm text-gray-600">
+                    Equal positive prediction rates across groups
+                  </div>
+                  <div className="mt-2">
+                    {metrics.demographic_parity &&
+                    typeof metrics.demographic_parity === "object" &&
+                    Object.keys(metrics.demographic_parity).length > 0 ? (
+                      <ul className="list-disc ml-4">
+                        {Object.entries(metrics.demographic_parity).map(
+                          ([attr, val]) => (
+                            <li key={attr} className="mb-1 flex items-center">
+                              <span className="font-medium text-gray-800 mr-2">
+                                {attr}:
+                              </span>
+                              <span className="bg-blue-50 text-blue-700 px-2 py-0.5 rounded text-sm font-mono">
+                                {typeof val === "number" && !isNaN(val)
+                                  ? val.toFixed(4)
+                                  : "N/A"}
+                              </span>
+                            </li>
+                          )
+                        )}
+                      </ul>
+                    ) : (
+                      <span className="text-gray-400">N/A</span>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
 
-          <div className="col-span-1">
-            <div className="bg-white rounded-xl shadow p-5 h-full flex flex-col justify-between border border-blue-200 min-h-[420px] max-h-[520px] overflow-hidden">
-              <div className="flex-1 overflow-y-auto">
-                <div className="mb-2 flex items-center gap-2">
-                  <span className="text-lg font-semibold text-blue-700">
-                    Individual Fairness
-                  </span>
-                  <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded">
-                    Fairness
-                  </span>
+            <div className="col-span-1">
+              <div className="bg-white rounded-xl shadow p-5 h-full flex flex-col justify-between border border-blue-200 max-h-[520px]">
+                <div className="flex-1 overflow-y-auto">
+                  <div className="mb-2 flex items-center gap-2">
+                    <span className="text-lg font-semibold text-blue-700">
+                      Equalized Odds
+                    </span>
+                    <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded">
+                      Fairness
+                    </span>
+                  </div>
+                  <div className="mb-2 text-sm text-gray-600">
+                    Equal true/false positive rates across groups
+                  </div>
+                  <div className="mt-2">
+                    {metrics.equalized_odds &&
+                    typeof metrics.equalized_odds === "object" &&
+                    Object.keys(metrics.equalized_odds).length > 0 ? (
+                      <ul className="list-disc ml-4">
+                        {Object.entries(metrics.equalized_odds).map(
+                          ([attr, val]) => (
+                            <li key={attr} className="mb-1 flex items-center">
+                              <span className="font-medium text-gray-800 mr-2">
+                                {attr}:
+                              </span>
+                              <span className="bg-blue-50 text-blue-700 px-2 py-0.5 rounded text-sm font-mono">
+                                {typeof val === "number" && !isNaN(val)
+                                  ? val.toFixed(4)
+                                  : "N/A"}
+                              </span>
+                            </li>
+                          )
+                        )}
+                      </ul>
+                    ) : (
+                      <span className="text-gray-400">N/A</span>
+                    )}
+                  </div>
                 </div>
-                <div className="mb-2 text-sm text-gray-600">
-                  Similar individuals receive similar outcomes
-                </div>
-                <div className="mt-2">
-                  {(() => {
-                    const val = metrics.individual_fairness;
-                    if (
-                      val === undefined ||
-                      val === null ||
-                      (typeof val === "number" && isNaN(val)) ||
-                      (typeof val === "object" && Object.keys(val).length === 0)
-                    ) {
-                      return <span className="text-gray-400">N/A</span>;
-                    }
-                    // Helper to summarize and format group values
-                    function summarizeGroup(obj) {
-                      const entries = Object.entries(obj).filter(
-                        ([k, v]) => typeof v === "number" && !isNaN(v)
-                      );
-                      if (entries.length === 0) return null;
-                      const avg =
-                        entries.reduce((a, [k, v]) => a + v, 0) /
-                        entries.length;
-                      return avg;
-                    }
-                    // Helper to collapse long lists
-                    function CollapsibleList({ entries, max = 10, label }) {
-                      const [expanded, setExpanded] = useState(false);
-                      const display = expanded
-                        ? entries
-                        : entries.slice(0, max);
-                      return (
-                        <>
-                          <ul className="ml-4 list-disc">
-                            {display.map(([k, v], idx) => (
-                              <li
-                                key={k + idx}
-                                className="flex items-center mb-1"
-                              >
-                                <span className="font-mono text-gray-700 mr-2">
-                                  {k}:
-                                </span>
-                                <span className="bg-blue-50 text-blue-700 px-2 py-0.5 rounded font-mono">
-                                  {typeof v === "number" && !isNaN(v)
-                                    ? v.toFixed(4)
-                                    : String(v)}
-                                </span>
-                              </li>
-                            ))}
-                          </ul>
-                          {entries.length > max && (
-                            <button
-                              className="text-xs text-blue-600 underline ml-4 mt-1"
-                              onClick={() => setExpanded((e) => !e)}
-                            >
-                              {expanded
-                                ? "Show Less"
-                                : `Show ${entries.length - max} More`}
-                            </button>
-                          )}
-                        </>
-                      );
-                    }
-                    // Main rendering logic
-                    if (typeof val === "number") {
-                      return (
-                        <div>
-                          <span className="font-semibold text-gray-800">
-                            Overall Individual Fairness Score:
-                          </span>
-                          <span className="bg-blue-50 text-blue-700 px-2 py-0.5 rounded text-sm font-mono ml-2">
-                            {val.toFixed(4)}
-                          </span>
-                          <div className="text-xs text-gray-600 mt-1">
-                            Higher values mean similar individuals receive
-                            similar outcomes.
-                          </div>
-                        </div>
-                      );
-                    }
-                    if (typeof val === "object" && val !== null) {
-                      return (
-                        <div>
-                          {Object.entries(val).map(([group, groupVal]) => {
-                            if (typeof groupVal === "number") {
-                              return (
-                                <div key={group} className="mb-2">
-                                  <span className="font-semibold text-gray-800">
-                                    {group}:
-                                  </span>
-                                  <span className="bg-blue-50 text-blue-700 px-2 py-0.5 rounded text-sm font-mono ml-2">
-                                    {groupVal.toFixed(4)}
-                                  </span>
-                                  <span className="text-xs text-gray-600 ml-2">
-                                    Average similarity of predictions for
-                                    individuals in{" "}
-                                    <span className="font-mono">{group}</span>.
-                                  </span>
-                                </div>
-                              );
-                            }
-                            if (
-                              typeof groupVal === "object" &&
-                              groupVal !== null
+              </div>
+            </div>
+
+            <div className="col-span-1">
+              <div className="bg-white rounded-xl shadow p-5 h-full flex flex-col justify-between border border-blue-200 max-h-[520px]">
+                <div className="flex-1 overflow-y-auto">
+                  <div className="mb-2 flex items-center gap-2">
+                    <span className="text-lg font-semibold text-blue-700">
+                      Calibration
+                    </span>
+                    <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded">
+                      Fairness
+                    </span>
+                  </div>
+                  <div className="mb-2 text-sm text-gray-600">
+                    Predicted probabilities match actual outcomes
+                  </div>
+                  <div className="mt-2">
+                    {metrics.calibration &&
+                    typeof metrics.calibration === "object" &&
+                    Object.keys(metrics.calibration).length > 0 ? (
+                      <ul className="list-disc ml-4">
+                        {Object.entries(metrics.calibration).map(
+                          ([attr, val]) => {
+                            let verdict = "N/A";
+                            let explanation = "";
+                            let overallScore = null;
+
+                            if (typeof val === "number" && !isNaN(val)) {
+                              overallScore = val;
+                              verdict =
+                                val >= 0.8
+                                  ? "Well-calibrated"
+                                  : val >= 0.6
+                                  ? "Moderate calibration"
+                                  : "Poor calibration";
+                              explanation = `Predictions for '${attr}' are ${verdict.toLowerCase()}.`;
+                            } else if (
+                              typeof val === "object" &&
+                              val !== null
                             ) {
-                              const entries = Object.entries(groupVal);
-                              const avg = summarizeGroup(groupVal);
-                              return (
-                                <div key={group} className="mb-2">
-                                  <span className="font-semibold text-gray-800">
-                                    {group}:
+                              const scores = Object.values(val).filter(
+                                (v) => typeof v === "number" && !isNaN(v)
+                              );
+                              if (scores.length > 0) {
+                                const mean =
+                                  scores.reduce((a, b) => a + b, 0) /
+                                  scores.length;
+                                const mae =
+                                  scores.reduce(
+                                    (a, b) => a + Math.abs(b - 0.5),
+                                    0
+                                  ) / scores.length;
+                                overallScore = 1 - mae * 2;
+                                verdict =
+                                  overallScore >= 0.8
+                                    ? "Well-calibrated"
+                                    : overallScore >= 0.6
+                                    ? "Moderate calibration"
+                                    : "Poor calibration";
+                                explanation = `Predicted probabilities for '${attr}' ${
+                                  verdict === "Well-calibrated"
+                                    ? "closely match"
+                                    : verdict === "Moderate calibration"
+                                    ? "somewhat match"
+                                    : "do not match"
+                                } actual outcomes.`;
+                              } else {
+                                verdict = "N/A";
+                                explanation = `No calibration data available for '${attr}'.`;
+                              }
+                            }
+
+                            const bins =
+                              typeof val === "object" && val !== null
+                                ? Object.entries(val)
+                                : [];
+                            const showAll = calibrationExpanded[attr] || false;
+                            const displayBins = showAll
+                              ? bins
+                              : bins.slice(0, 5);
+
+                            return (
+                              <li key={attr} className="mb-3">
+                                <div className="flex items-center mb-1">
+                                  <span className="font-medium text-gray-800 mr-2">
+                                    {attr}:
                                   </span>
-                                  {avg !== null && (
-                                    <span className="bg-blue-50 text-blue-700 px-2 py-0.5 rounded text-sm font-mono ml-2">
-                                      Avg: {avg.toFixed(4)}
+                                  <span
+                                    className={`px-2 py-0.5 rounded text-xs font-semibold ${
+                                      verdict === "Well-calibrated"
+                                        ? "bg-green-100 text-green-700"
+                                        : verdict === "Moderate calibration"
+                                        ? "bg-yellow-100 text-yellow-700"
+                                        : verdict === "Poor calibration"
+                                        ? "bg-red-100 text-red-700"
+                                        : "bg-gray-100 text-gray-500"
+                                    }`}
+                                  >
+                                    {verdict}
+                                  </span>
+                                  {overallScore !== null && (
+                                    <span className="ml-2 text-xs text-gray-500">
+                                      Score: {overallScore.toFixed(2)}
                                     </span>
                                   )}
-                                  <span className="text-xs text-gray-600 ml-2">
-                                    Similarity scores for each value in{" "}
-                                    <span className="font-mono">{group}</span>:
-                                  </span>
-                                  <CollapsibleList
-                                    entries={entries}
-                                    max={10}
-                                    label={group}
-                                  />
                                 </div>
-                              );
-                            }
-                            return null;
-                          })}
-                          <div className="text-xs text-gray-600 mt-2">
-                            Higher values mean similar individuals receive
-                            similar outcomes. Scores are averaged per group or
-                            value.
+                                <div className="mb-1 text-xs text-gray-600">
+                                  {explanation}
+                                </div>
+                                {typeof val === "number" && !isNaN(val) ? (
+                                  <span className="bg-blue-50 text-blue-700 px-2 py-0.5 rounded text-sm font-mono">
+                                    {val.toFixed(4)}
+                                  </span>
+                                ) : typeof val === "object" && val !== null ? (
+                                  <>
+                                    <ul className="ml-4 list-disc">
+                                      {displayBins.map(([bin, score]) => (
+                                        <li key={bin} className="text-xs">
+                                          <span className="font-mono text-gray-700">
+                                            {bin}:
+                                          </span>{" "}
+                                          <span className="bg-blue-50 text-blue-700 px-2 py-0.5 rounded font-mono">
+                                            {typeof score === "number" &&
+                                            !isNaN(score)
+                                              ? score.toFixed(4)
+                                              : "N/A"}
+                                          </span>
+                                        </li>
+                                      ))}
+                                    </ul>
+                                    {bins.length > 5 && (
+                                      <button
+                                        className="text-xs text-blue-600 underline ml-4 mt-1"
+                                        onClick={() =>
+                                          setCalibrationExpanded((prev) => ({
+                                            ...prev,
+                                            [attr]: !showAll,
+                                          }))
+                                        }
+                                      >
+                                        {showAll
+                                          ? "Show Less"
+                                          : `Show ${bins.length - 5} More`}
+                                      </button>
+                                    )}
+                                  </>
+                                ) : (
+                                  <span className="bg-blue-50 text-blue-700 px-2 py-0.5 rounded text-sm font-mono">
+                                    N/A
+                                  </span>
+                                )}
+                              </li>
+                            );
+                          }
+                        )}
+                      </ul>
+                    ) : (
+                      <span className="text-gray-400">N/A</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="col-span-1">
+              <div className="bg-white rounded-xl shadow p-5 h-full flex flex-col justify-between border border-blue-200 min-h-[420px] max-h-[520px] overflow-hidden">
+                <div className="flex-1 overflow-y-auto">
+                  <div className="mb-2 flex items-center gap-2">
+                    <span className="text-lg font-semibold text-blue-700">
+                      Individual Fairness
+                    </span>
+                    <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded">
+                      Fairness
+                    </span>
+                  </div>
+                  <div className="mb-2 text-sm text-gray-600">
+                    Similar individuals receive similar outcomes
+                  </div>
+                  <div className="mt-2">
+                    {(() => {
+                      const val = metrics.individual_fairness;
+                      if (
+                        val === undefined ||
+                        val === null ||
+                        (typeof val === "number" && isNaN(val)) ||
+                        (typeof val === "object" &&
+                          Object.keys(val).length === 0)
+                      ) {
+                        return <span className="text-gray-400">N/A</span>;
+                      }
+                      // Helper to summarize and format group values
+                      function summarizeGroup(obj) {
+                        const entries = Object.entries(obj).filter(
+                          ([k, v]) => typeof v === "number" && !isNaN(v)
+                        );
+                        if (entries.length === 0) return null;
+                        const avg =
+                          entries.reduce((a, [k, v]) => a + v, 0) /
+                          entries.length;
+                        return avg;
+                      }
+                      // Helper to collapse long lists
+                      function CollapsibleList({ entries, max = 10, label }) {
+                        const [expanded, setExpanded] = useState(false);
+                        const display = expanded
+                          ? entries
+                          : entries.slice(0, max);
+                        return (
+                          <>
+                            <ul className="ml-4 list-disc">
+                              {display.map(([k, v], idx) => (
+                                <li
+                                  key={k + idx}
+                                  className="flex items-center mb-1"
+                                >
+                                  <span className="font-mono text-gray-700 mr-2">
+                                    {k}:
+                                  </span>
+                                  <span className="bg-blue-50 text-blue-700 px-2 py-0.5 rounded font-mono">
+                                    {typeof v === "number" && !isNaN(v)
+                                      ? v.toFixed(4)
+                                      : String(v)}
+                                  </span>
+                                </li>
+                              ))}
+                            </ul>
+                            {entries.length > max && (
+                              <button
+                                className="text-xs text-blue-600 underline ml-4 mt-1"
+                                onClick={() => setExpanded((e) => !e)}
+                              >
+                                {expanded
+                                  ? "Show Less"
+                                  : `Show ${entries.length - max} More`}
+                              </button>
+                            )}
+                          </>
+                        );
+                      }
+                      // Main rendering logic
+                      if (typeof val === "number") {
+                        return (
+                          <div>
+                            <span className="font-semibold text-gray-800">
+                              Overall Individual Fairness Score:
+                            </span>
+                            <span className="bg-blue-50 text-blue-700 px-2 py-0.5 rounded text-sm font-mono ml-2">
+                              {val.toFixed(4)}
+                            </span>
+                            <div className="text-xs text-gray-600 mt-1">
+                              Higher values mean similar individuals receive
+                              similar outcomes.
+                            </div>
                           </div>
-                        </div>
-                      );
-                    }
-                    return <span className="text-gray-400">N/A</span>;
-                  })()}
+                        );
+                      }
+                      if (typeof val === "object" && val !== null) {
+                        return (
+                          <div>
+                            {Object.entries(val).map(([group, groupVal]) => {
+                              if (typeof groupVal === "number") {
+                                return (
+                                  <div key={group} className="mb-2">
+                                    <span className="font-semibold text-gray-800">
+                                      {group}:
+                                    </span>
+                                    <span className="bg-blue-50 text-blue-700 px-2 py-0.5 rounded text-sm font-mono ml-2">
+                                      {groupVal.toFixed(4)}
+                                    </span>
+                                    <span className="text-xs text-gray-600 ml-2">
+                                      Average similarity of predictions for
+                                      individuals in{" "}
+                                      <span className="font-mono">{group}</span>
+                                      .
+                                    </span>
+                                  </div>
+                                );
+                              }
+                              if (
+                                typeof groupVal === "object" &&
+                                groupVal !== null
+                              ) {
+                                const entries = Object.entries(groupVal);
+                                const avg = summarizeGroup(groupVal);
+                                return (
+                                  <div key={group} className="mb-2">
+                                    <span className="font-semibold text-gray-800">
+                                      {group}:
+                                    </span>
+                                    {avg !== null && (
+                                      <span className="bg-blue-50 text-blue-700 px-2 py-0.5 rounded text-sm font-mono ml-2">
+                                        Avg: {avg.toFixed(4)}
+                                      </span>
+                                    )}
+                                    <span className="text-xs text-gray-600 ml-2">
+                                      Similarity scores for each value in{" "}
+                                      <span className="font-mono">{group}</span>
+                                      :
+                                    </span>
+                                    <CollapsibleList
+                                      entries={entries}
+                                      max={10}
+                                      label={group}
+                                    />
+                                  </div>
+                                );
+                              }
+                              return null;
+                            })}
+                            <div className="text-xs text-gray-600 mt-2">
+                              Higher values mean similar individuals receive
+                              similar outcomes. Scores are averaged per group or
+                              value.
+                            </div>
+                          </div>
+                        );
+                      }
+                      return <span className="text-gray-400">N/A</span>;
+                    })()}
+                  </div>
                 </div>
               </div>
             </div>
           </div>
-        </div>
+        )}
 
         {/* Bias Detection Results */}
         <Card className="mb-8">

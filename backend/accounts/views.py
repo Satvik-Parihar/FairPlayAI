@@ -20,8 +20,8 @@ class PasswordResetRequestView(APIView):
                 serializer.save()
                 print("✅ Serializer saved successfully")
                 return Response({"message": "Password reset email sent."}, status=status.HTTP_200_OK)
-            except serializers.ValidationError as ve:
-                return Response(ve.detail, status=status.HTTP_400_BAD_REQUEST)
+            # except serializers.ValidationError as ve:
+            #     return Response(ve.detail, status=status.HTTP_400_BAD_REQUEST)
             except Exception as e:
                 import traceback
                 traceback.print_exc()

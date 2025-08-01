@@ -72,8 +72,7 @@ def main(df, mapping, target_col, selected_model=None, problem_type=None):
     # Dynamically define valid models based on problem type
     if problem_type == 'regression':
         valid_models = {"linear_regression", "polynomial_regression"}
-        # For regression, set Demographic Parity and Equalized Odds to None
-        metrics = {"demographic_parity": None, "equalized_odds": None, "calibration": None}
+        metrics = {}
     elif problem_type in ['binary_classification', 'multi_class_classification']:
         valid_models = {"knn", "decision_tree", "logistic_regression", "random_forest"}
     else: # 'unknown' problem type, or other cases you want to handle
@@ -87,16 +86,48 @@ def main(df, mapping, target_col, selected_model=None, problem_type=None):
         raise ValueError(f"Invalid model '{choice}' for a {problem_type} problem. Valid models are: {', '.join(valid_models)}")
 
     if problem_type == 'regression':
-        metrics = {"demographic_parity": None, "equalized_odds": None, "calibration": None}
+        # Train model and get base metrics
         if choice == "linear_regression":
-            model, y_pred, metrics = train_linear_model(X_train, X_test, y_train, y_test)
-            return model, y_pred, metrics
+            model, y_pred, base_metrics = train_linear_model(X_train, X_test, y_train, y_test)
         elif choice == "polynomial_regression":
-            model, y_pred, metrics, degree = train_best_polynomial(X_train, X_test, y_train, y_test)
-            if metrics is None:
-                metrics = {}
-            metrics['polynomial_degree'] = degree
-            return model, y_pred, metrics
+            model, y_pred, base_metrics, degree = train_best_polynomial(X_train, X_test, y_train, y_test)
+            base_metrics['polynomial_degree'] = degree
+        else:
+            raise ValueError(f"Unknown regression model: {choice}")
+
+        # Compute regression fairness metrics for each sensitive attribute
+        from .fairness_metrics import group_mean_prediction, group_mae, group_r2, group_residuals
+        regression_fairness = {}
+        for sensitive_col in mapping.keys():
+            # Try to recover the original (pre-encoded) sensitive attribute from df
+            if sensitive_col in df.columns:
+                sensitive_attr = df[sensitive_col]
+            else:
+                encoded_cols = mapping[sensitive_col]
+                if len(encoded_cols) > 1:
+                    sensitive_attr = df[encoded_cols].idxmax(axis=1).apply(lambda x: x.replace(f"{sensitive_col}_", ""))
+                else:
+                    sensitive_attr = df[encoded_cols[0]]
+            # Get sensitive attribute for test set only
+            if sensitive_col in X_test.columns:
+                sensitive_attr_test = X_test[sensitive_col]
+            else:
+                encoded_cols = mapping[sensitive_col]
+                if len(encoded_cols) > 1:
+                    sensitive_attr_test = X_test[encoded_cols].idxmax(axis=1).apply(lambda x: x.replace(f"{sensitive_col}_", ""))
+                else:
+                    sensitive_attr_test = X_test[encoded_cols[0]]
+
+            regression_fairness[sensitive_col] = {
+                "group_mean_prediction": group_mean_prediction(y_pred, sensitive_attr_test),
+                "group_mae": group_mae(y_test, y_pred, sensitive_attr_test),
+                "group_r2": group_r2(y_test, y_pred, sensitive_attr_test),
+                "group_residuals": group_residuals(y_test, y_pred, sensitive_attr_test)
+            }
+
+        metrics = base_metrics.copy()
+        metrics["regression_fairness"] = regression_fairness
+        return model, y_pred, metrics
 
     # For classification models
     model, y_pred, metrics = None, None, None

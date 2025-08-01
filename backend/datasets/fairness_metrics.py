@@ -1,3 +1,89 @@
+def group_mean_prediction(y_pred, sensitive_features):
+    """
+    Compute mean prediction for each sensitive group.
+    """
+    import numpy as np
+    import pandas as pd
+    if isinstance(sensitive_features, pd.Series):
+        sensitive_features = sensitive_features.values
+    if isinstance(y_pred, pd.Series):
+        y_pred = y_pred.values
+    groups = np.unique(sensitive_features)
+    means = {}
+    for group in groups:
+        mask = (sensitive_features == group)
+        if np.sum(mask) == 0:
+            means[group] = np.nan
+        else:
+            means[group] = float(np.mean(y_pred[mask]))
+    return means
+
+def group_mae(y_true, y_pred, sensitive_features):
+    """
+    Compute mean absolute error for each sensitive group.
+    """
+    import numpy as np
+    import pandas as pd
+    if isinstance(sensitive_features, pd.Series):
+        sensitive_features = sensitive_features.values
+    if isinstance(y_pred, pd.Series):
+        y_pred = y_pred.values
+    if isinstance(y_true, pd.Series):
+        y_true = y_true.values
+    groups = np.unique(sensitive_features)
+    maes = {}
+    for group in groups:
+        mask = (sensitive_features == group)
+        if np.sum(mask) == 0:
+            maes[group] = np.nan
+        else:
+            maes[group] = float(np.mean(np.abs(y_true[mask] - y_pred[mask])))
+    return maes
+
+def group_r2(y_true, y_pred, sensitive_features):
+    """
+    Compute R^2 score for each sensitive group.
+    """
+    import numpy as np
+    import pandas as pd
+    from sklearn.metrics import r2_score
+    if isinstance(sensitive_features, pd.Series):
+        sensitive_features = sensitive_features.values
+    if isinstance(y_pred, pd.Series):
+        y_pred = y_pred.values
+    if isinstance(y_true, pd.Series):
+        y_true = y_true.values
+    groups = np.unique(sensitive_features)
+    r2s = {}
+    for group in groups:
+        mask = (sensitive_features == group)
+        if np.sum(mask) < 2:
+            r2s[group] = np.nan
+        else:
+            r2s[group] = float(r2_score(y_true[mask], y_pred[mask]))
+    return r2s
+
+def group_residuals(y_true, y_pred, sensitive_features):
+    """
+    Compute mean residual (y_true - y_pred) for each sensitive group.
+    """
+    import numpy as np
+    import pandas as pd
+    if isinstance(sensitive_features, pd.Series):
+        sensitive_features = sensitive_features.values
+    if isinstance(y_pred, pd.Series):
+        y_pred = y_pred.values
+    if isinstance(y_true, pd.Series):
+        y_true = y_true.values
+    groups = np.unique(sensitive_features)
+    resids = {}
+    for group in groups:
+        mask = (sensitive_features == group)
+        if np.sum(mask) == 0:
+            resids[group] = np.nan
+        else:
+            resids[group] = float(np.mean(y_true[mask] - y_pred[mask]))
+    return resids
 def individual_fairness(X, y_pred, sensitive_features=None, k=5):
     """
     Computes individual fairness for classification models.

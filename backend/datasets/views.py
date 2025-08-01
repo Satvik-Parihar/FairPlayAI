@@ -263,21 +263,41 @@ def train_selected_model(request):
                     return float(sum(vals)) / len(vals)
             return None
 
-        fairness_keys = ["demographic_parity", "equalized_odds", "calibration", "individual_fairness"]
-        fairness_scores = []
-        for key in fairness_keys:
-            v = metrics.get(key)
-            m = mean_of_metric(v)
-            if m is not None and not math.isnan(m):
-                # Clamp to [0, 1] if needed
-                m = max(0.0, min(1.0, m))
-                fairness_scores.append(m)
-        if fairness_scores:
-            overall_fairness_score = sum(fairness_scores) / len(fairness_scores)
-            # Optionally scale to 0-10 for frontend display
+        if problem_type == "regression":
+            def compute_regression_fairness_score(fairness_results):
+                all_maes = []
+                # fairness_results: metrics["regression_fairness"]
+                for attr, group_metrics in fairness_results.items():
+                    group_mae = group_metrics.get("group_mae", {})
+                    maes = [v for v in group_mae.values() if isinstance(v, (int, float)) and v is not None and not math.isnan(v)]
+                    all_maes.extend(maes)
+                if len(all_maes) <= 1:
+                    return 1.0  # Only one group, perfectly fair
+                max_mae = max(all_maes)
+                min_mae = min(all_maes)
+                if max_mae == 0:
+                    return 1.0
+                fairness_score = 1 - (max_mae - min_mae) / max_mae
+                return round(max(0, fairness_score), 4)
+
+            regression_fairness = metrics.get("regression_fairness", {})
+            overall_fairness_score = compute_regression_fairness_score(regression_fairness)
             overall_fairness_score_10 = round(overall_fairness_score * 10, 2)
         else:
-            overall_fairness_score_10 = None
+            fairness_keys = ["demographic_parity", "equalized_odds", "calibration", "individual_fairness"]
+            fairness_scores = []
+            for key in fairness_keys:
+                v = metrics.get(key)
+                m = mean_of_metric(v)
+                if m is not None and not math.isnan(m):
+                    # Clamp to [0, 1] if needed
+                    m = max(0.0, min(1.0, m))
+                    fairness_scores.append(m)
+            if fairness_scores:
+                overall_fairness_score = sum(fairness_scores) / len(fairness_scores)
+                overall_fairness_score_10 = round(overall_fairness_score * 10, 2)
+            else:
+                overall_fairness_score_10 = 0.0
 
         # --- Compute bias_detected list ---
         # We'll use demographic_parity as the bias score per attribute (can be changed if needed)
