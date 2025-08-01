@@ -49,6 +49,7 @@ def train_test_split_sensitive_only(df, mapping, target_col, problem_type, test_
 
 
 def main(df, mapping, target_col, selected_model=None, problem_type=None):
+
     """
     Selects and trains a model based on the detected problem type.
 
@@ -62,6 +63,9 @@ def main(df, mapping, target_col, selected_model=None, problem_type=None):
     Returns:
         tuple: (model, y_pred, metrics, [degree])
     """
+    # Prevent user from selecting target column as a sensitive attribute (fail fast)
+    if target_col in mapping.keys():
+        raise ValueError("Sensitive attribute and target column cannot be the same. Please select different columns.")
     if problem_type is None:
         raise ValueError("Problem type must be provided to model_selector.main.")
 

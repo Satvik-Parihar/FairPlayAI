@@ -154,8 +154,13 @@ def preprocess_csv(request):
     if not df_json:
         return Response({"error": "Cleaned CSV not found in cache. Please upload and clean first."}, status=status.HTTP_400_BAD_REQUEST)
 
+
     df = pd.read_json(io.StringIO(df_json))
     sensitive_attrs = json.loads(sensitive_attrs_str) # Parse JSON string to list
+
+    # Prevent user from selecting target column as a sensitive attribute (fail fast, before any processing)
+    if target_col in sensitive_attrs:
+        return Response({"error": "Sensitive attribute and target column cannot be the same. Please select different columns."}, status=status.HTTP_400_BAD_REQUEST)
 
     try:
         # Step 1: Detect problem type
@@ -173,7 +178,6 @@ def preprocess_csv(request):
         cache.set(f'{session_id}_problem_type', problem_type, timeout=300) # Store problem type
         if target_mapping: # Only store if classification and mapping exists
             cache.set(f'{session_id}_target_mapping', target_mapping, timeout=300)
-
 
         response_data = {
             "message": "Data preprocessed successfully.",

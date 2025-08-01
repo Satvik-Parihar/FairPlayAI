@@ -148,7 +148,7 @@ const UploadPage = () => {
       toast({
         title: "Preprocessing Failed",
         description:
-          "Check logs or input CSV." + (err.response?.data?.error || ""),
+           (err.response?.data?.error || ""),
         variant: "destructive",
       });
       setIsPreprocessed(false);
