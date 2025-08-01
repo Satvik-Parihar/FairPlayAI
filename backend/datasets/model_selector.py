@@ -132,10 +132,7 @@ def main(df, mapping, target_col, selected_model=None, problem_type=None):
                         sensitive_attr_test = X_test[encoded_cols].idxmax(axis=1).apply(lambda x: x.replace(f"{sensitive_col}_", ""))
                     else:
                         sensitive_attr_test = X_test[encoded_cols[0]]
-                # Debug logging for fairness metric calculation
-                print(f"[DEBUG] Sensitive attribute: {sensitive_col}")
-                print("[DEBUG] Sensitive groups in test set:", sensitive_attr_test.unique())
-                print("[DEBUG] Predicted classes in test set:", pd.Series(y_pred).unique())
+                
                 # Calculate rates by group for debug
                 from collections import defaultdict
                 rates = defaultdict(float)
@@ -150,7 +147,7 @@ def main(df, mapping, target_col, selected_model=None, problem_type=None):
                             rates[group] = (y_pred[mask] == positive_class).mean()
                         else:
                             rates[group] = (y_pred[mask] == 1).mean()
-                print(f"[DEBUG] Demographic parity rates by group for {sensitive_col}:", dict(rates))
+                # print(f"[DEBUG] Demographic parity rates by group for {sensitive_col}:", dict(rates))
                 metrics["demographic_parity"][sensitive_col] = demographic_parity(y_pred, sensitive_attr_test)
                 metrics["equalized_odds"][sensitive_col] = equalized_odds(y_pred, sensitive_attr_test, y_test)
                 metrics["calibration"][sensitive_col] = calibration(y_pred, sensitive_attr_test, y_test)

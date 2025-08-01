@@ -193,8 +193,6 @@ def preprocess_csv(request):
 @api_view(['POST'])
 def train_selected_model(request):
 
-    print("[DEBUG] request.POST:", dict(request.POST))
-    print("[DEBUG] request.data:", getattr(request, 'data', None))
     session_id = request.POST.get("session_id") or request.data.get("session_id")
     selected_model = request.POST.get("selected_model") or request.data.get("selected_model")
 
@@ -285,7 +283,6 @@ def train_selected_model(request):
             for attr, score in dp.items():
                 if score is None or (isinstance(score, float) and math.isnan(score)):
                     continue
-                # Lower score = less bias, so invert for risk: high risk if score < 0.5
                 if score < 0.5:
                     severity = "high"
                 elif score < 0.75:
@@ -297,6 +294,86 @@ def train_selected_model(request):
                     "score": score,
                     "severity": severity
                 })
+
+        # --- Generate suggestions array based on metrics ---
+        suggestions = []
+        # Helper to assign priority based on severity
+        def get_priority(severity):
+            if severity == "high":
+                return "high"
+            elif severity == "medium":
+                return "medium"
+            else:
+                return "low"
+
+        # Suggestion templates
+        suggestion_templates = [
+            {
+                "type": "data_augmentation",
+                "description": "Increase representation of underrepresented groups in training data"
+            },
+            {
+                "type": "algorithmic_adjustment",
+                "description": "Apply post-processing fairness constraints to model predictions"
+            },
+            {
+                "type": "feature_engineering",
+                "description": "Remove or transform features highly correlated with sensitive attributes"
+            }
+        ]
+
+        # For each sensitive attribute, check metrics and add suggestions
+        sensitive_attrs = set()
+        for key in ["demographic_parity", "equalized_odds", "calibration"]:
+            val = metrics.get(key)
+            if isinstance(val, dict):
+                sensitive_attrs.update(val.keys())
+
+        def get_numeric_score(val):
+            import numbers
+            if isinstance(val, numbers.Number):
+                return float(val)
+            elif isinstance(val, dict):
+                vals = [v for v in val.values() if isinstance(v, numbers.Number) and v is not None]
+                if vals:
+                    return float(sum(vals)) / len(vals)
+            return None
+
+        for attr in sensitive_attrs:
+            # Demographic parity
+            dp_score = metrics.get("demographic_parity", {}).get(attr)
+            dp_val = get_numeric_score(dp_score)
+            if dp_val is not None and not (isinstance(dp_val, float) and math.isnan(dp_val)):
+                if dp_val < 0.5:
+                    suggestions.append({
+                        "type": "data_augmentation",
+                        "priority": "high",
+                        "description": "Increase representation of underrepresented groups in training data",
+                        "attribute": attr
+                    })
+            # Equalized odds
+            eo_score = metrics.get("equalized_odds", {}).get(attr)
+            eo_val = get_numeric_score(eo_score)
+            if eo_val is not None and not (isinstance(eo_val, float) and math.isnan(eo_val)):
+                if 0.5 <= eo_val < 0.75:
+                    suggestions.append({
+                        "type": "algorithmic_adjustment",
+                        "priority": "medium",
+                        "description": "Apply post-processing fairness constraints to model predictions",
+                        "attribute": attr
+                    })
+            # Calibration
+            cal_score = metrics.get("calibration", {}).get(attr)
+            cal_val = get_numeric_score(cal_score)
+            if cal_val is not None and not (isinstance(cal_val, float) and math.isnan(cal_val)):
+                if cal_val < 0.6:
+                    suggestions.append({
+                        "type": "feature_engineering",
+                        "priority": "low",
+                        "description": "Remove or transform features highly correlated with sensitive attributes",
+                        "attribute": attr
+                    })
+
         report_data = {
             "selected_model": selected_model,
             "problem_type": problem_type,
@@ -307,6 +384,7 @@ def train_selected_model(request):
             "upload_date": upload_date,
             "overall_fairness_score": overall_fairness_score_10,
             "bias_detected": bias_detected,
+            "suggestions": suggestions,
             # Add more fields as needed
         }
         # Create report in MongoDB (returns string report_id)
@@ -316,6 +394,7 @@ def train_selected_model(request):
             "metrics": metrics,
             "overall_fairness_score": overall_fairness_score_10,
             "bias_detected": bias_detected,
+            "suggestions": suggestions,
             "report_id": report_id
         })
     except ValueError as e:
