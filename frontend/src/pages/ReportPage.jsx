@@ -109,6 +109,10 @@ const ReportPage = () => {
   if (reportData) {
     // eslint-disable-next-line no-console
     console.log("ReportPage: reportData from backend:", reportData);
+    if (reportData.metrics && reportData.metrics.regression_fairness) {
+      // eslint-disable-next-line no-console
+      console.log("Regression Fairness metrics from backend:", reportData.metrics.regression_fairness);
+    }
   }
   if (isLoading) {
     return (
@@ -251,127 +255,122 @@ const ReportPage = () => {
 
         {/* Fairness Metrics */}
 
-       {problemType === "regression" ? (
-          // Regression fairness metrics block
-          <Card className="mb-8">
-            <CardHeader>
-              <CardTitle>Regression Fairness by Sensitive Attribute</CardTitle>
-              <CardDescription>
-                Group-wise fairness metrics for regression
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {metrics.regression_fairness &&
-              Object.keys(metrics.regression_fairness).length > 0 ? (
-                <>
-                  {Object.entries(metrics.regression_fairness).map(
-                    ([attr, groupMetrics]) => (
-                      <div key={attr} className="mb-6">
-                        <div className="font-semibold text-blue-700 mb-2">
-                          {attr}
-                        </div>
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                          {Object.entries(groupMetrics).map(
-                            ([metricName, values]) => (
-                              <div key={metricName}>
-                                <div className="text-xs text-gray-500 font-medium mb-1">
-                                  {metricName.replace(/_/g, " ")}
-                                </div>
-                                <ul className="ml-2">
-                                  {values && typeof values === "object" ? (
-                                    Object.entries(values).map(
-                                      ([group, val]) => {
-                                        let colorClass =
-                                          "bg-blue-50 text-blue-700";
-                                        if (
-                                          metricName === "group_r2" &&
-                                          val !== null &&
-                                          val !== undefined &&
-                                          !isNaN(val)
-                                        ) {
-                                          if (val > 0.5) {
-                                            colorClass =
-                                              "bg-green-100 text-green-700";
-                                          } else if (val >= 0) {
-                                            colorClass =
-                                              "bg-yellow-100 text-yellow-700";
-                                          } else {
-                                            colorClass =
-                                              "bg-red-100 text-red-700";
-                                          }
-                                        }
-                                        return (
-                                          <li key={group} className="text-sm">
-                                            <span className="font-mono text-gray-700">
-                                              {group}:
-                                            </span>{" "}
-                                            <span
-                                              className={`${colorClass} px-2 py-0.5 rounded font-mono`}
-                                            >
-                                              {val === null ||
-                                              val === undefined ||
-                                              isNaN(val)
-                                                ? "N/A"
-                                                : Number(val).toFixed(4)}
-                                            </span>
-                                          </li>
-                                        );
-                                      }
-                                    )
-                                  ) : (
-                                    <li>N/A</li>
-                                  )}
-                                </ul>
-                              </div>
-                            )
-                          )}
-                        </div>
-                      </div>
-                    )
-                  )}
-                  {/* Overall Fairness Score for Regression */}
-                  {typeof metrics.overall_fairness_score === "number" &&
-                    !isNaN(metrics.overall_fairness_score) && (
-                      <div className="mt-6">
-                        <div className="text-base font-semibold text-gray-800 mb-1">
-                          Overall Fairness Score
-                        </div>
-                        <div className="text-sm text-gray-600 mb-2">
-                          Aggregated fairness score across sensitive attributes.
-                          Higher is better.
-                        </div>
-                        {(() => {
-                          let score = metrics.overall_fairness_score;
-                          if (typeof score !== "number") {
-                            score = parseFloat(score);
-                          }
-                          let colorClass = "bg-red-50 text-red-700";
-                          if (!isNaN(score)) {
-                            if (score >= 8) {
-                              colorClass = "bg-green-50 text-green-700";
-                            } else if (score >= 6) {
-                              colorClass = "bg-yellow-50 text-yellow-700";
+      {problemType === "regression" ? (
+        // Refactored: Each sensitive attribute gets its own card, with group metrics as a table
+        <div className={`grid ${metrics.regression_fairness && Object.keys(metrics.regression_fairness).length === 1 ? 'grid-cols-1' : 'lg:grid-cols-2 md:grid-cols-1'} gap-6 mb-8`}>
+          {metrics.regression_fairness && Object.keys(metrics.regression_fairness).length > 0 ? (
+            Object.entries(metrics.regression_fairness).map(([attr, groupMetrics], idx, arr) => {
+              // Collect all group names for this attribute
+              const groupNames = Array.from(
+                new Set(
+                  [
+                    ...(groupMetrics.group_mae ? Object.keys(groupMetrics.group_mae) : []),
+                    ...(groupMetrics.group_r2 ? Object.keys(groupMetrics.group_r2) : []),
+                    ...(groupMetrics.group_residuals ? Object.keys(groupMetrics.group_residuals) : []),
+                    ...(groupMetrics.group_mean_prediction ? Object.keys(groupMetrics.group_mean_prediction) : []),
+                  ]
+                )
+              );
+              return (
+                <Card
+                  key={attr}
+                  className={`h-full flex flex-col max-h-[420px] ${arr.length === 1 ? 'col-span-full' : ''}`}
+                >
+                  <CardHeader>
+                    <CardTitle className="capitalize text-blue-700">{attr}</CardTitle>
+                    <CardDescription>Group-wise regression metrics</CardDescription>
+                  </CardHeader>
+                  <CardContent className="flex-1 overflow-y-auto">
+                    <div className="overflow-x-auto">
+                      <table className="min-w-full text-sm text-left">
+                        <thead>
+                          <tr className="bg-blue-100 text-blue-700">
+                            <th className="px-3 py-2 font-semibold">Group</th>
+                            <th className="px-3 py-2 font-semibold">MAE</th>
+                            <th className="px-3 py-2 font-semibold">R²</th>
+                            <th className="px-3 py-2 font-semibold">Residual</th>
+                            <th className="px-3 py-2 font-semibold">Mean Prediction</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {groupNames.map((group) => {
+                            const mae = groupMetrics.group_mae?.[group];
+                            const r2 = groupMetrics.group_r2?.[group];
+                            const resid = groupMetrics.group_residuals?.[group];
+                            const meanPred = groupMetrics.group_mean_prediction?.[group];
+                            // Color for R²
+                            let r2Color = "bg-blue-50 text-blue-700";
+                            if (r2 !== null && r2 !== undefined && !isNaN(r2)) {
+                              if (r2 > 0.5) r2Color = "bg-green-100 text-green-700";
+                              else if (r2 >= 0) r2Color = "bg-yellow-100 text-yellow-700";
+                              else r2Color = "bg-red-100 text-red-700";
                             }
-                          }
-                          return (
-                            <div
-                              className={`inline-block ${colorClass} px-3 py-1 rounded text-lg font-mono shadow`}
-                            >
-                              {!isNaN(score) ? score.toFixed(4) : "N/A"}
-                            </div>
-                          );
-                        })()}
-                      </div>
-                    )}
-                </>
-              ) : (
-                <div className="text-gray-500">
-                  No regression fairness metrics available.
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        ) :
+                            return (
+                              <tr key={group} className="border-b last:border-b-0">
+                                <td className="px-3 py-2 font-mono text-gray-700">{group}</td>
+                                <td className="px-3 py-2">
+                                  {mae === null || mae === undefined || isNaN(mae)
+                                    ? <span className="text-gray-400">Insufficient data</span>
+                                    : mae.toFixed(4)}
+                                </td>
+                                <td className={`px-3 py-2 ${r2Color}`}>
+                                  {r2 === null || r2 === undefined || isNaN(r2)
+                                    ? <span className="text-gray-400">Insufficient data</span>
+                                    : r2.toFixed(4)}
+                                </td>
+                                <td className="px-3 py-2">
+                                  {resid === null || resid === undefined || isNaN(resid)
+                                    ? <span className="text-gray-400">Insufficient data</span>
+                                    : resid.toFixed(4)}
+                                </td>
+                                <td className="px-3 py-2">
+                                  {meanPred === null || meanPred === undefined || isNaN(meanPred)
+                                    ? <span className="text-gray-400">Insufficient data</span>
+                                    : meanPred.toFixed(4)}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })
+          ) : (
+            <div className="text-gray-500 col-span-full">No regression fairness metrics available.</div>
+          )}
+          {/* Overall Fairness Score for Regression */}
+          {typeof metrics.overall_fairness_score === "number" && !isNaN(metrics.overall_fairness_score) && (
+            <Card className="col-span-full mt-4">
+              <CardContent>
+                <div className="text-base font-semibold text-gray-800 mb-1">Overall Fairness Score</div>
+                <div className="text-sm text-gray-600 mb-2">Aggregated fairness score across sensitive attributes. Higher is better.</div>
+                {(() => {
+                  let score = metrics.overall_fairness_score;
+                  if (typeof score !== "number") {
+                    score = parseFloat(score);
+                  }
+                  let colorClass = "bg-red-50 text-red-700";
+                  if (!isNaN(score)) {
+                    if (score >= 8) {
+                      colorClass = "bg-green-50 text-green-700";
+                    } else if (score >= 6) {
+                      colorClass = "bg-yellow-50 text-yellow-700";
+                    }
+                  }
+                  return (
+                    <div className={`inline-block ${colorClass} px-3 py-1 rounded text-lg font-mono shadow`}>
+                      {!isNaN(score) ? score.toFixed(4) : "N/A"}
+                    </div>
+                  );
+                })()}
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      ) :
          (
           <div className="grid lg:grid-cols-4 md:grid-cols-2 gap-6 mb-8">
             <div className="col-span-1">

@@ -302,22 +302,44 @@ def train_selected_model(request):
         # --- Compute bias_detected list ---
         # We'll use demographic_parity as the bias score per attribute (can be changed if needed)
         bias_detected = []
-        dp = metrics.get("demographic_parity")
-        if isinstance(dp, dict):
-            for attr, score in dp.items():
-                if score is None or (isinstance(score, float) and math.isnan(score)):
-                    continue
-                if score < 0.5:
+        if problem_type == "regression":
+            regression_fairness = metrics.get("regression_fairness", {})
+            for attr, group_metrics in regression_fairness.items():
+                group_mae = group_metrics.get("group_mae", {})
+                maes = [v for v in group_mae.values() if isinstance(v, (int, float)) and v is not None and not math.isnan(v)]
+                if not maes or len(maes) <= 1:
+                    continue  # Not enough data to assess bias
+                max_mae = max(maes)
+                min_mae = min(maes)
+                bias_score = 1 - (max_mae - min_mae) / max_mae  # Same logic as fairness score
+                if bias_score < 0.5:
                     severity = "high"
-                elif score < 0.75:
+                elif bias_score < 0.75:
                     severity = "medium"
                 else:
                     severity = "low"
                 bias_detected.append({
                     "attribute": attr,
-                    "score": score,
+                    "score": round(bias_score, 4),
                     "severity": severity
                 })
+        else:
+            dp = metrics.get("demographic_parity")
+            if isinstance(dp, dict):
+                for attr, score in dp.items():
+                    if score is None or (isinstance(score, float) and math.isnan(score)):
+                        continue
+                    if score < 0.5:
+                        severity = "high"
+                    elif score < 0.75:
+                        severity = "medium"
+                    else:
+                        severity = "low"
+                    bias_detected.append({
+                        "attribute": attr,
+                        "score": score,
+                        "severity": severity
+                    })
 
         # --- Generate suggestions array based on metrics ---
         suggestions = []
@@ -396,6 +418,48 @@ def train_selected_model(request):
                         "priority": "low",
                         "description": "Remove or transform features highly correlated with sensitive attributes",
                         "attribute": attr
+                    })
+        if problem_type == "regression":
+            regression_fairness = metrics.get("regression_fairness", {})
+            for attr, group_metrics in regression_fairness.items():
+                group_mae = group_metrics.get("group_mae", {})
+                maes = [v for v in group_mae.values() if isinstance(v, (int, float)) and not math.isnan(v)]
+                if len(maes) <= 1:
+                    continue
+
+                max_mae = max(maes)
+                min_mae = min(maes)
+                bias_score = 1 - (max_mae - min_mae) / max_mae
+
+                # Decide priority
+                if bias_score < 0.5:
+                    priority = "high"
+                elif bias_score < 0.75:
+                    priority = "medium"
+                else:
+                    priority = "low"
+
+                # Add regression-specific suggestions
+                if priority == "high":
+                    suggestions.append({
+                        "type": "residual_analysis",
+                        "priority": priority,
+                        "attribute": attr,
+                        "description": "Significant error variation found across groups. Consider examining residual patterns for fairness issues."
+                    })
+                elif priority == "medium":
+                    suggestions.append({
+                        "type": "model_tuning",
+                        "priority": priority,
+                        "attribute": attr,
+                        "description": "Moderate error variation detected. Consider re-tuning or recalibrating your model."
+                    })
+                else:
+                    suggestions.append({
+                        "type": "monitoring",
+                        "priority": priority,
+                        "attribute": attr,
+                        "description": "Fairness is acceptable. Keep monitoring group performance in production."
                     })
 
         report_data = {
