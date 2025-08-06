@@ -871,4 +871,73 @@ const ReportPage = () => {
   );
 };
 
-export default ReportPage;
+// export default ReportPage;
+
+// Legend/Guide Modal component
+// import { useState } from "react";
+
+const LegendGuideModal = ({ open, onClose }) => {
+  if (!open) return null;
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+      <div className="bg-white rounded-lg shadow-lg max-w-sm w-full p-6 relative">
+        <button
+          className="absolute top-2 right-2 text-gray-400 hover:text-gray-700 text-xl font-bold"
+          onClick={onClose}
+          aria-label="Close legend"
+        >
+          ×
+        </button>
+        <h2 className="text-lg font-semibold mb-3 flex items-center gap-2">
+          <span className="bg-blue-100 text-blue-700 px-2 py-0.5 rounded text-base font-bold">?</span>
+          Fairness Metrics Legend
+        </h2>
+        <ul className="space-y-3 mt-2">
+          <li className="flex items-center gap-3">
+            <CheckCircle className="h-5 w-5 text-green-600" />
+            <span className="bg-green-100 text-green-700 px-2 py-0.5 rounded font-mono">Green</span>
+            <span className="text-gray-700">Fair / Low Bias</span>
+          </li>
+          <li className="flex items-center gap-3">
+            <AlertTriangle className="h-5 w-5 text-yellow-600" />
+            <span className="bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded font-mono">Yellow</span>
+            <span className="text-gray-700">Moderate concern</span>
+          </li>
+          <li className="flex items-center gap-3">
+            <XCircle className="h-5 w-5 text-red-600" />
+            <span className="bg-red-100 text-red-700 px-2 py-0.5 rounded font-mono">Red</span>
+            <span className="text-gray-700">Unfair / High Bias</span>
+          </li>
+        </ul>
+        <div className="mt-4 text-xs text-gray-500">
+          These colors and icons are used throughout the report to indicate fairness levels for metrics, groups, and charts.
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const FloatingLegendButton = ({ onClick }) => (
+  <button
+    className="fixed bottom-6 right-6 z-40 bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-lg w-12 h-12 flex items-center justify-center text-2xl font-bold focus:outline-none focus:ring-2 focus:ring-blue-400"
+    onClick={onClick}
+    aria-label="Show legend/guide"
+    title="Show legend/guide"
+    type="button"
+  >
+    ?
+  </button>
+);
+
+const ReportPageWithLegend = () => {
+  const [legendOpen, setLegendOpen] = useState(false);
+  return (
+    <>
+      <ReportPage />
+      <FloatingLegendButton onClick={() => setLegendOpen(true)} />
+      <LegendGuideModal open={legendOpen} onClose={() => setLegendOpen(false)} />
+    </>
+  );
+};
+
+export default ReportPageWithLegend;
