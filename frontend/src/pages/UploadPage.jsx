@@ -1,5 +1,6 @@
-// UploadPage.jsx
 import { useState, useEffect } from "react";
+
+
 import { useNavigate } from "react-router-dom";
 import {
   Card,
@@ -20,6 +21,13 @@ const UploadPage = () => {
   const [csvFile, setCsvFile] = useState(null);
   const [modelFile, setModelFile] = useState(null);
   const [availableColumns, setAvailableColumns] = useState([]);
+  // ...existing code...
+
+  // Handler for changing the target column
+  const handleTargetColumnChange = (e) => {
+    setTargetColumn(e.target.value);
+    setIsPreprocessed(false); // Reset preprocessing if target changes
+  };
   const [targetColumn, setTargetColumn] = useState("");
   const [selectedAttributes, setSelectedAttributes] = useState([]);
   const [missingStrategy, setMissingStrategy] = useState("drop");
@@ -32,14 +40,94 @@ const UploadPage = () => {
   const [problemType, setProblemType] = useState(null);
   const [reportId, setReportId] = useState(null); // Store report id for navigation
   const [canStartAnalysis, setCanStartAnalysis] = useState(false); // Enable Start Analysis button after model metrics
+  const [modelUploaded, setModelUploaded] = useState(false);
 
   const { toast } = useToast();
   const navigate = useNavigate();
+// Validate model and dataset columns before analysis
+  const validateModelDataset = async (csvFile, modelFile) => {
+    if (!csvFile || !modelFile) {
+      toast({
+        title: "Validation Error",
+        description: "Both dataset and model files are required for validation.",
+        variant: "destructive",
+      });
+      return false;
+    }
+    const formData = new FormData();
+    formData.append("dataset", csvFile);
+    formData.append("model", modelFile);
+    formData.append("target_col", targetColumn); // <-- Ensure target_col is sent
+    if (selectedAttributes && selectedAttributes.length > 0) {
+      formData.append("sensitive_attrs", JSON.stringify(selectedAttributes));
+    }
+    try {
+      const res = await axios.post("http://localhost:8000/api/datasets/validate-model-dataset/", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      if (res.data.status === "success") {
+        toast({
+          title: "Validation Success",
+          description: `Dataset columns match model features: ${res.data.model_features.join(", ")}`,
+          variant: "success",
+        });
+        return true;
+      } else {
+        toast({
+          title: "Validation Error",
+          description: res.data.error || "Validation failed.",
+          variant: "destructive",
+        });
+        return false;
+      }
+    } catch (err) {
+      let errorMsg = err.response?.data?.error || "Validation failed. Please check your files.";
+      let details = "";
+      if (err.response?.data?.missing_columns) {
+        details = `\nMissing columns: ${err.response.data.missing_columns.join(", ")}`;
+      } else if (err.response?.data?.extra_columns) {
+        details = `\nExtra columns: ${err.response.data.extra_columns.join(", ")}`;
+      }
+      toast({
+        title: "Validation Error",
+        description: errorMsg + details,
+        variant: "destructive",
+      });
+      return false;
+    }
+  };
+  // Download handler for cleaned CSV
+function handleDownload(cleanedCSV) {
+  if (!cleanedCSV) return;
+  const blob = new Blob([cleanedCSV], { type: "text/csv" });
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "cleaned_data.csv";
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  window.URL.revokeObjectURL(url);
+}
+
+// Helper for rendering cleaning summary items
+function summaryItem(label, value) {
+  if (value === undefined || value === null || (Array.isArray(value) && value.length === 0)) return null;
+  return (
+    <li>
+      <strong>{label}:</strong> {Array.isArray(value) ? value.join(", ") : value}
+    </li>
+  );
+}
 
   // Auth state for UI
   const [isAuthenticated, setIsAuthenticated] = useState(
     !!localStorage.getItem("authToken")
   );
+const handleUploadResponse = (response) => {
+  setModelUploaded(!!response.model_uploaded);
+  // ...other state updates
+};
 
   // Listen for login/logout changes
   useEffect(() => {
@@ -48,6 +136,15 @@ const UploadPage = () => {
     window.addEventListener("storage", checkAuth);
     return () => window.removeEventListener("storage", checkAuth);
   }, []);
+
+  // Always trigger cleaning when csvFile changes (single or dual upload)
+  useEffect(() => {
+    if (csvFile && isAuthenticated) {
+      // Optionally reset downstream state here if needed
+      fetchCsvColumns(csvFile, missingStrategy, targetColumn, selectedAttributes);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [csvFile, missingStrategy]);
 
   const fetchCsvColumns = async (file, strategy, targetCol, sensitiveAttrs) => {
     // Check authentication before upload
@@ -190,117 +287,41 @@ const UploadPage = () => {
       });
       return;
     }
-    if (!preprocessedDataKey) {
-      toast({
-        title: "Session ID Missing",
-        description:
-          "Session ID is missing. Please re-upload and preprocess your data.",
-        variant: "destructive",
-      });
-      console.error(
-        "[ERROR] No session_id (preprocessedDataKey) at model training."
-      );
-      return;
-    }
-    if (!model) {
-      toast({
-        title: "Model Not Selected",
-        description: "Please select a model before training.",
-        variant: "destructive",
-      });
-      console.error("[ERROR] No model selected at model training.");
-      return;
-    }
 
+    // Trigger model training API call
     try {
-      const payload = {
-        session_id: preprocessedDataKey,
-        selected_model: model,
-        target_col: targetColumn,
-        problem_type: problemType,
-      };
-      console.log("[DEBUG] Sending to /train-selected-model/:", payload);
+      const formData = new FormData();
+      formData.append("session_id", preprocessedDataKey);
+      formData.append("target_col", targetColumn);
+      formData.append("sensitive_attrs", JSON.stringify(selectedAttributes));
+      formData.append("selected_model", model); // <-- Correct field name
+      formData.append("problem_type", problemType);
       const res = await axios.post(
         "http://localhost:8000/api/datasets/train-selected-model/",
-        payload,
+        formData,
         {
           headers: {
-            "Content-Type": "application/json",
+            "Content-Type": "multipart/form-data",
           },
         }
       );
-
-      const { metrics, message, report_id } = res.data;
-
+      setModelMetrics(res.data.metrics || null);
+      setReportId(res.data.report_id || null);
+      setCanStartAnalysis(true);
       toast({
-        title: "✅ Model Trained",
-        description:
-          `${message}. Accuracy: ${metrics.accuracy ?? "N/A"}` +
-          (metrics.r2_score !== undefined
-            ? ` R2 Score: ${metrics.r2_score.toFixed(4)}`
-            : ""),
+        title: "Model Training Complete",
+        description: res.data.message || "Model trained and ready for analysis.",
       });
-
-      setModelMetrics(metrics);
-
-      setReportId(report_id || null);
-      console.log("[DEBUG] Report ID:", report_id);
-      setCanStartAnalysis(true); // Enable Start AI Bias Analysis button
     } catch (err) {
-      console.error("Model training failed:", err.response?.data || err);
+      setCanStartAnalysis(false);
+      setReportId(null);
       toast({
-        title: "❌ Model Training Failed",
-        description: "Check backend logs or inputs.",
+        title: "Model Training Failed",
+        description:
+          err.response?.data?.error || "An error occurred during model training.",
         variant: "destructive",
       });
     }
-  };
-
-  // Trigger cleaning when CSV or missing strategy changes
-  useEffect(() => {
-    if (csvFile && missingStrategy) {
-      setSelectedModel("");
-      setIsPreprocessed(false);
-      setPreprocessedDataKey(null);
-      setProblemType(null);
-      setCleaningSummary(null);
-      setCleanedCSV(null);
-      setAvailableColumns([]);
-      setTargetColumn("");
-      setSelectedAttributes([]);
-      fetchCsvColumns(csvFile, missingStrategy);
-    }
-  }, [csvFile, missingStrategy]);
-
-  // Remove auto-triggering preprocessing. Only call when user clicks Continue.
-
-  const handleAttributeChange = (col) => {
-    setSelectedAttributes((prev) =>
-      prev.includes(col) ? prev.filter((c) => c !== col) : [...prev, col]
-    );
-    setCanStartAnalysis(false);
-  };
-  const handleTargetColumnChange = (e) => {
-    setTargetColumn(e.target.value);
-    setCanStartAnalysis(false);
-  };
-  const handleDownload = () => {
-    const blob = new Blob([cleanedCSV], { type: "text/csv" });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "cleaned_data.csv";
-    a.click();
-    window.URL.revokeObjectURL(url);
-  };
-
-  const summaryItem = (label, value) => {
-    if (!value || (Array.isArray(value) && value.length === 0)) return null;
-    return (
-      <li key={label}>
-        {label}: {Array.isArray(value) ? value.join(", ") : value}
-      </li>
-    );
   };
   const handleStartAnalysis = async () => {
     // Navigate to report page after user clicks the button
@@ -310,7 +331,85 @@ const UploadPage = () => {
       navigate("/report");
     }
   };
+  // In UploadPage.jsx
 
+  // Add state for target column
+  // Removed duplicate declaration of targetColumn
+
+  // Handler for sensitive attribute selection
+  const handleAttributeChange = (attribute) => {
+    setSelectedAttributes((prev) => {
+      if (prev.includes(attribute)) {
+        // Remove if already selected
+        return prev.filter((attr) => attr !== attribute);
+      } else {
+        // Add if not selected
+        return [...prev, attribute];
+      }
+    });
+  };
+
+const handleDualUpload = async () => {
+  if (!csvFile) {
+    toast({
+      title: "CSV Required",
+      description: "Please upload a CSV file.",
+      variant: "destructive",
+    });
+    return;
+  }
+  if (!targetColumn || selectedAttributes.length === 0) {
+    toast({
+      title: "Missing Information",
+      description: "Please select a target column and sensitive attributes.",
+      variant: "destructive",
+    });
+    return;
+  }
+  const formData = new FormData();
+  formData.append("csv_file", csvFile);
+  if (modelFile) formData.append("model_file", modelFile);
+  formData.append("target_col", targetColumn);
+  formData.append("sensitive_attrs", JSON.stringify(selectedAttributes));
+  try {
+    const res = await axios.post(
+      "http://localhost:8000/api/datasets/upload_csv_and_model/",
+      formData,
+      {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      }
+    );
+    toast({
+      title: "Analysis Complete",
+      description: res.data.message,
+    });
+    // If no model was uploaded, enable model selection and training
+    if (res.data && res.data.model_uploaded === false) {
+      // Set state to enable model selection and training
+      setIsPreprocessed(true); // or trigger preprocessing if needed
+      setCanStartAnalysis(false); // User must select model and train first
+      setModelUploaded(false);
+      // Optionally, navigate to model selection UI or show a prompt
+    }
+    // Optionally: setModelMetrics(res.data.metrics), setReportId(res.data.report_id), etc.
+  } catch (err) {
+    // Print full error to console for debugging
+    if (err.response) {
+      console.error("Upload failed:", err.response.data);
+    } else {
+      console.error("Upload failed:", err);
+    }
+    toast({
+      title: "Upload Failed",
+      description:
+        err.response?.data?.error ||
+        "An error occurred during upload. Check your files and try again.",
+      variant: "destructive",
+    });
+  }
+};
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 py-12">
       <div className="max-w-6xl mx-auto px-4">
@@ -441,7 +540,9 @@ const UploadPage = () => {
                     >
                       Continue
                     </Button>
-                    {/* ✨ Display inferred problem type */}
+
+                    {!modelUploaded &&(<>
+                      {/* ✨ Display inferred problem type */}
                     {problemType && (
                       <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200 text-sm text-blue-700 font-medium">
                         Problem Type Detected:{" "}
@@ -482,7 +583,10 @@ const UploadPage = () => {
                           <option value="random_forest">Random Forest</option>
                         </>
                       )}
+                    
                     </select>
+                    </>)}
+                  
                   </div>
                 </>
               )}
@@ -548,9 +652,10 @@ const UploadPage = () => {
                   <ul className="text-sm text-green-800 list-disc list-inside">
                     {Object.entries(modelMetrics).map(([key, value]) => {
                       // console.log("[DEBUG] Model Metric:", key, value);
-                      if (key =="individual_fairness" || key == "calibration" || key == "equalized_odds" || key == "demographic_parity"){
+                      if (key =="individual_fairness" || key == "calibration" || key == "equalized_odds" || key == "demographic_parity"|| key=="regression_fairness"){
                         return null;
                       }
+                      console.log(key)
                       // Recursively render metric value(s) to handle deeply nested objects
                       const renderMetricValue = (val) => {
                         if (typeof val === "number")
@@ -615,9 +720,13 @@ const UploadPage = () => {
                 <FileUploader
                   acceptedTypes=".pkl"
                   maxSize={100}
-                  onFileSelect={setModelFile}
+                  onFileSelect={(file) => {
+                    setModelFile(file);
+                    setModelUploaded(!!file);
+                  }}
                   selectedFile={modelFile}
                   placeholder="Drop your model file here or click to browse"
+                  disabled={!csvFile}
                 />
               </div>
             </CardContent>
@@ -630,13 +739,73 @@ const UploadPage = () => {
             disabled={
               !csvFile ||
               !targetColumn ||
-              selectedAttributes.length === 0 ||
-              !isPreprocessed ||
-              !selectedModel ||
-              !reportId ||
-              !canStartAnalysis // Only enable after model metrics are set
+              selectedAttributes.length === 0
             }
-            onClick={handleStartAnalysis}
+            onClick={async () => {
+              // If both files are present, validate before analysis
+              if (modelFile && csvFile) {
+                const valid = await validateModelDataset(csvFile, modelFile);
+                if (!valid) return; // Stop if validation fails
+                // Proceed with analysis only if validation passes
+                const formData = new FormData();
+                formData.append("csv_file", csvFile);
+                formData.append("model_file", modelFile);
+                formData.append("target_col", targetColumn);
+                formData.append("sensitive_attrs", JSON.stringify(selectedAttributes));
+                try {
+                  const res = await axios.post(
+                    "http://localhost:8000/api/datasets/upload_csv_and_model/",
+                    formData,
+                    {
+                      headers: {
+                        "Content-Type": "multipart/form-data",
+                      },
+                    }
+                  );
+                  if (res.data && res.data.message) {
+                    toast({
+                      title: "Success",
+                      description: res.data.message,
+                      variant: "success",
+                    });
+                  } else {
+                    toast({
+                      title: "Success",
+                      description: "Upload completed successfully.",
+                      variant: "success",
+                    });
+                  }
+                  if (res.data && res.data.report_id) {
+                    setReportId(res.data.report_id);
+                    navigate(`/report/${res.data.report_id}`);
+                  }
+                  // Optionally: setModelMetrics(res.data.metrics), setReportId(res.data.report_id), etc.
+                } catch (err) {
+                  let errorMsg = err.response?.data?.error || "An error occurred during upload. Check your files and try again.";
+                  if (err.response) {
+                    console.error("Dual upload failed:", err.response.data);
+                  } else {
+                    console.error("Dual upload failed:", err);
+                  }
+                  toast({
+                    title: "Upload Failed",
+                    description: errorMsg,
+                    variant: "destructive",
+                  });
+                }
+              } else {
+                // CSV-only flow: keep existing logic
+                if (!isPreprocessed || !selectedModel || !reportId || !canStartAnalysis) {
+                  toast({
+                    title: "Not Ready",
+                    description: "Please complete preprocessing and model selection before starting analysis.",
+                    variant: "destructive",
+                  });
+                  return;
+                }
+                handleStartAnalysis();
+              }
+            }}
             className="px-12 py-4 bg-gradient-to-br from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
           >
             <Zap className="mr-3 h-5 w-5" />

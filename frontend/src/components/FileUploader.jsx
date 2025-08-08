@@ -8,7 +8,8 @@ const FileUploader = ({
   maxSize, 
   onFileSelect, 
   selectedFile, 
-  placeholder 
+  placeholder, 
+  disabled = false
 }) => {
   const [isDragActive, setIsDragActive] = useState(false);
 
@@ -70,7 +71,7 @@ const FileUploader = ({
 
   if (selectedFile) {
     return (
-      <Card className="p-4 border-2 border-green-200 bg-green-50">
+      <Card className="p-4 border-2 border-green-200 bg-green-50 opacity-100">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3">
             <File className="h-8 w-8 text-green-600" />
@@ -82,6 +83,8 @@ const FileUploader = ({
           <button
             onClick={removeFile}
             className="p-1 hover:bg-green-200 rounded-full transition-colors"
+            disabled={disabled}
+            style={disabled ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
           >
             <X className="h-5 w-5 text-green-600" />
           </button>
@@ -92,14 +95,15 @@ const FileUploader = ({
 
   return (
     <Card
-      className={`p-8 border-2 border-dashed transition-all cursor-pointer hover:border-blue-400 ${
+      className={`p-8 border-2 border-dashed transition-all ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:border-blue-400'} ${
         isDragActive ? "border-blue-500 bg-blue-50" : "border-gray-300"
       }`}
-      onDragEnter={handleDrag}
-      onDragLeave={handleDrag}
-      onDragOver={handleDrag}
-      onDrop={handleDrop}
-      onClick={() => document.getElementById(`file-input-${acceptedTypes}`).click()}
+      onDragEnter={disabled ? undefined : handleDrag}
+      onDragLeave={disabled ? undefined : handleDrag}
+      onDragOver={disabled ? undefined : handleDrag}
+      onDrop={disabled ? undefined : handleDrop}
+      onClick={disabled ? undefined : () => document.getElementById(`file-input-${acceptedTypes}`).click()}
+      style={disabled ? { pointerEvents: 'auto' } : {}}
     >
       <input
         id={`file-input-${acceptedTypes}`}
@@ -107,8 +111,8 @@ const FileUploader = ({
         accept={acceptedTypes}
         onChange={handleFileInput}
         className="hidden"
+        disabled={disabled}
       />
-      
       <div className="text-center">
         <Upload className={`mx-auto h-12 w-12 mb-4 ${
           isDragActive ? "text-blue-500" : "text-gray-400"
@@ -119,6 +123,9 @@ const FileUploader = ({
         <p className="text-sm text-gray-500">
           Supports {acceptedTypes} files up to {maxSize}MB
         </p>
+        {disabled && (
+          <p className="text-xs text-red-500 mt-2">Please select a CSV file first.</p>
+        )}
       </div>
     </Card>
   );

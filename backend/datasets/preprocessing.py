@@ -33,7 +33,17 @@ def preprocess_data(df, sensitive_attrs, target_col, problem_type): # Add proble
     """
     Preprocess the dataset dynamically based on problem_type.
     """
+
     df = df.copy()
+    # --- Impute missing values before any encoding ---
+    for col in df.columns:
+        if pd.api.types.is_numeric_dtype(df[col]):
+            mean_val = df[col].mean()
+            df[col] = df[col].fillna(mean_val)
+        else:
+            mode_val = df[col].mode().iloc[0] if not df[col].mode().empty else None
+            if mode_val is not None:
+                df[col] = df[col].fillna(mode_val)
     encoded_feature_map = {}
     onehot_encoder = OneHotEncoder(sparse_output=False, handle_unknown='ignore') # Added handle_unknown for robustness
     scaler = StandardScaler()

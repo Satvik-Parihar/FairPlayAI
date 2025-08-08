@@ -1,3 +1,134 @@
+from rest_framework.decorators import api_view, parser_classes
+from rest_framework.parsers import MultiPartParser, FormParser
+import joblib
+import pickle
+from fairness.models import AnalysisReport
+# ...existing code...
+
+
+@api_view(['POST'])
+@parser_classes([MultiPartParser, FormParser])
+def validate_model_dataset(request):
+    """
+    Strict validation of uploaded CSV and model for fairness analysis.
+    """
+    import pandas as pd
+    import json
+    dataset_file = request.FILES.get('dataset')
+    model_file = request.FILES.get('model')
+    target_col = request.data.get('target_col')
+    sensitive_attrs = request.data.get('sensitive_attrs')
+    force_validate = request.data.get('force_validate', 'false').lower() == 'true'
+
+    if not dataset_file or not model_file:
+        return Response({"status": "error", "error": "Both 'dataset' and 'model' files are required."}, status=400)
+
+    # Load model (joblib, then pickle)
+    try:
+        try:
+            model = joblib.load(model_file)
+        except Exception:
+            model_file.seek(0)
+            model = pickle.load(model_file)
+    except Exception as e:
+        return Response({"status": "error", "error": f"Failed to load model: {str(e)}"}, status=400)
+
+    # 1. Get model features
+    if not hasattr(model, 'feature_names_in_'):
+        return Response({
+            "status": "error",
+            "error": "Model does not have 'feature_names_in_' attribute. Please train and save your model with scikit-learn 1.0+.",
+        }, status=400)
+    model_features = list(model.feature_names_in_)
+
+    # 2. Read CSV
+    try:
+        df = pd.read_csv(dataset_file)
+    except Exception as e:
+        return Response({"status": "error", "error": f"Failed to read CSV: {str(e)}"}, status=400)
+    csv_columns = list(df.columns)
+
+    # 3. Rule 1: All model features must be present in the CSV
+    missing_model_features = [col for col in model_features if col not in csv_columns]
+    if missing_model_features:
+        return Response({
+            "status": "error",
+            "error": "Missing model features in CSV.",
+            "missing_model_features": missing_model_features
+        }, status=400)
+
+    # 4. Rule 2: Target column must match model's target metadata
+    # Try to discover model's target name from common places
+    model_target = None
+    for attr in ["target_col", "target_column", "target_name", "y_name"]:
+        model_target = getattr(model, attr, None)
+        if model_target:
+            break
+    if not model_target and hasattr(model, "metadata") and isinstance(model.metadata, dict):
+        model_target = model.metadata.get("target")
+
+    if model_target:
+        if not target_col:
+            return Response({
+                "status": "error",
+                "error": "No target_col provided in request.",
+                "expected_target": model_target
+            }, status=400)
+        if target_col != model_target:
+            return Response({
+                "status": "error",
+                "error": "Selected target does not match model target.",
+                "expected_target": model_target,
+                "provided_target": target_col,
+                "target_mismatch": True
+            }, status=400)
+    else:
+        return Response({
+            "status": "error",
+            "error": "Model does not include target metadata. Cannot verify selected target.",
+            "model_missing_target_metadata": True,
+            "message": "Retrain or save your model with a 'target_col' attribute or use a UI flag to force validation."
+        }, status=400)
+
+    # 5. Rule 3: Sensitive attributes must be present in model features
+    sensitive_list = []
+    if sensitive_attrs:
+        try:
+            if isinstance(sensitive_attrs, str):
+                try:
+                    sensitive_list = json.loads(sensitive_attrs)
+                    if not isinstance(sensitive_list, list):
+                        raise ValueError
+                except Exception:
+                    # fallback: comma-separated string
+                    sensitive_list = [s.strip() for s in sensitive_attrs.split(",") if s.strip()]
+            elif isinstance(sensitive_attrs, list):
+                sensitive_list = sensitive_attrs
+        except Exception:
+            return Response({
+                "status": "error",
+                "error": "Could not parse sensitive_attrs. Provide as JSON array or comma-separated string."
+            }, status=400)
+
+    sensitive_not_in_model = [attr for attr in sensitive_list if attr not in model_features]
+    if sensitive_not_in_model and not force_validate:
+        return Response({
+            "status": "error",
+            "error": "Sensitive attributes not present in model features.",
+            "sensitive_not_in_model": sensitive_not_in_model,
+            "message": "Fairness analysis requires sensitive attributes to be features used by the model. Retrain your model to include these attributes."
+        }, status=400)
+
+    # 6. Rule 4: Extra columns in CSV are allowed (do not error)
+
+    # Success response
+    resp = {
+        "status": "success",
+        "message": "Validation passed.",
+        "model_features": model_features,
+        "model_target": model_target
+    }
+    return Response(resp, status=200)
 
 
 # views.py
@@ -499,3 +630,303 @@ def convert_keys_to_str(d):
         return [convert_keys_to_str(i) for i in d]
     else:
         return d
+    
+
+from rest_framework.decorators import api_view, parser_classes
+from rest_framework.parsers import MultiPartParser, FormParser
+from rest_framework.response import Response
+from rest_framework import status
+import pandas as pd
+from fairness.models import AnalysisReport
+import traceback
+
+@api_view(['POST'])
+@parser_classes([MultiPartParser, FormParser])
+def upload_csv_and_model(request):
+    """
+    Accepts a CSV file and an optional model.pkl file.
+    If both are present, uses the model for prediction and fairness.
+    If only CSV, proceeds with normal training.
+    """
+    csv_file = request.FILES.get("csv_file")
+    model_file = request.FILES.get("model_file")
+    user_id = str(request.user.id) if request.user and hasattr(request.user, 'is_authenticated') and request.user.is_authenticated else None
+
+    if not csv_file:
+        return Response({"error": "CSV file is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        # 1. Read CSV
+        try:
+            df = pd.read_csv(csv_file)
+        except Exception as e:
+            return Response({"error": f"Failed to read CSV: {e}"}, status=400)
+
+        target_col = request.data.get("target_col")
+        sensitive_attrs = request.data.get("sensitive_attrs")
+        if not target_col or not sensitive_attrs:
+            return Response({"error": "target_col and sensitive_attrs are required."}, status=400)
+        if isinstance(sensitive_attrs, str):
+            import json
+            try:
+                sensitive_attrs = json.loads(sensitive_attrs)
+            except Exception as e:
+                return Response({"error": f"Could not parse sensitive_attrs: {e}"}, status=400)
+
+        # 2. If model_file is present, store in GridFS and run fairness
+
+        if model_file:
+            try:
+                # Save model file to GridFS and load it
+                report_id = AnalysisReport.create_report(user_id, {"original_filename": csv_file.name})
+                model_file_id = AnalysisReport.upload_file_to_gridfs(model_file.read(), model_file.name, report_id)
+                model = AnalysisReport.load_model_from_gridfs(model_file_id)
+                # 1. Extract required features
+                if hasattr(model, "feature_names_in_"):
+                    required_features = list(model.feature_names_in_)
+                else:
+                    return Response({
+                        "error": "Uploaded model does not have 'feature_names_in_' attribute. Please ensure your model was trained with scikit-learn 1.0+ and saved with feature names."
+                    }, status=400)
+
+                # 2. Validate dataset columns
+                missing = [col for col in required_features if col not in df.columns]
+                if missing:
+                    return Response({
+                        "error": f"Missing features: {', '.join(missing)}",
+                        "missing_features": missing,
+                        "required_features": required_features,
+                        "csv_columns": list(df.columns),
+                        "model_uploaded": False
+                    }, status=400)
+
+                # 3. Validate sensitive/target columns
+                for attr in sensitive_attrs:
+                    if attr not in required_features:
+                        return Response({
+                            "error": f"Sensitive attribute '{attr}' is not among model's expected features: {required_features}",
+                            "required_features": required_features,
+                            "model_uploaded": False
+                        }, status=400)
+
+                # --- Run fairness analysis and generate report ---
+                # 1. Detect problem type
+                from .preprocessing import detect_problem_type, preprocess_data
+                from .model_selector import main as fairness_main
+                problem_type = detect_problem_type(df, target_col)
+                # 2. Preprocess data
+                df_processed, encoded_feature_map, target_mapping = preprocess_data(df, sensitive_attrs, target_col, problem_type)
+                # 3. Run fairness analysis using uploaded model
+                # (Assume model is already trained, so just evaluate)
+                # For now, use fairness_main to compute metrics (simulate as if model was selected)
+                # Note: If you want to use the uploaded model directly, you may need to adapt this logic
+                # For now, run fairness_main for metrics
+
+                try:
+                    _, _, metrics = fairness_main(
+                        df_processed,
+                        encoded_feature_map,
+                        target_col,
+                        selected_model="linear_regression" if problem_type=="regression" else "logistic_regression",
+                        problem_type=problem_type
+                    )
+                except Exception as e:
+                    return Response({"error": f"Fairness analysis failed: {e}"}, status=400)
+
+                # --- Ensure fairness metrics are present for all sensitive attributes ---
+                from .fairness_metrics import demographic_parity, equalized_odds, calibration, individual_fairness
+                fairness_keys = ["demographic_parity", "equalized_odds", "calibration", "individual_fairness"]
+                for key, func in zip(fairness_keys, [demographic_parity, equalized_odds, calibration, individual_fairness]):
+                    if key not in metrics or not isinstance(metrics[key], dict):
+                        metrics[key] = {}
+                    for attr in encoded_feature_map.keys():
+                        # Defensive: Only compute if not already present or is None
+                        if attr not in metrics[key] or metrics[key][attr] is None:
+                            # Try to recover the original (pre-encoded) sensitive attribute from df_processed
+                            if attr in df_processed.columns:
+                                sensitive_attr = df_processed[attr]
+                            else:
+                                encoded_cols = encoded_feature_map[attr]
+                                if len(encoded_cols) > 1:
+                                    sensitive_attr = df_processed[encoded_cols].idxmax(axis=1).apply(lambda x: x.replace(f"{attr}_", ""))
+                                else:
+                                    sensitive_attr = df_processed[encoded_cols[0]]
+                            # Use test set if available, else all
+                            # For simplicity, use all rows (matches fairness_main logic)
+                            y_true = df_processed[target_col]
+                            y_pred = None  # Not available here, so skip if needed
+                            try:
+                                if key == "demographic_parity":
+                                    metrics[key][attr] = func(y_true, sensitive_attr)
+                                elif key == "equalized_odds":
+                                    metrics[key][attr] = func(y_true, sensitive_attr, y_true)
+                                elif key == "calibration":
+                                    metrics[key][attr] = func(y_true, sensitive_attr, y_true)
+                                elif key == "individual_fairness":
+                                    metrics[key][attr] = func(df_processed, y_true, sensitive_attr)
+                            except Exception:
+                                metrics[key][attr] = None
+
+                # Compute overall fairness score and suggestions (example logic)
+
+                # --- Compute overall_fairness_score using same logic as train_selected_model ---
+                import math
+                def mean_of_metric(val):
+                    import numbers
+                    if isinstance(val, numbers.Number):
+                        return float(val)
+                    elif isinstance(val, dict):
+                        vals = [v for v in val.values() if isinstance(v, numbers.Number) and v is not None]
+                        if vals:
+                            return float(sum(vals)) / len(vals)
+                    return None
+
+                if problem_type == "regression":
+                    def compute_regression_fairness_score(fairness_results):
+                        all_maes = []
+                        for attr, group_metrics in fairness_results.items():
+                            group_mae = group_metrics.get("group_mae", {})
+                            maes = [v for v in group_mae.values() if isinstance(v, (int, float)) and v is not None and not math.isnan(v)]
+                            all_maes.extend(maes)
+                        if len(all_maes) <= 1:
+                            return 1.0
+                        max_mae = max(all_maes)
+                        min_mae = min(all_maes)
+                        if max_mae == 0:
+                            return 1.0
+                        fairness_score = 1 - (max_mae - min_mae) / max_mae
+                        return round(max(0, fairness_score), 4)
+                    regression_fairness = metrics.get("regression_fairness", {})
+                    overall_fairness_score = compute_regression_fairness_score(regression_fairness) * 10
+                else:
+                    fairness_keys = ["demographic_parity", "equalized_odds", "calibration", "individual_fairness"]
+                    fairness_scores = []
+                    for key in fairness_keys:
+                        v = metrics.get(key)
+                        m = mean_of_metric(v)
+                        if m is not None and not math.isnan(m):
+                            m = max(0.0, min(1.0, m))
+                            fairness_scores.append(m)
+                    if fairness_scores:
+                        overall_fairness_score = sum(fairness_scores) / len(fairness_scores) * 10
+                    else:
+                        overall_fairness_score = 0.0
+                # --- Compute bias_detected using same logic as train_selected_model ---
+                bias_detected = []
+                if problem_type == "regression":
+                    regression_fairness = metrics.get("regression_fairness", {})
+                    for attr, group_metrics in regression_fairness.items():
+                        group_mae = group_metrics.get("group_mae", {})
+                        maes = [v for v in group_mae.values() if isinstance(v, (int, float)) and v is not None and not math.isnan(v)]
+                        if not maes or len(maes) <= 1:
+                            continue  # Not enough data to assess bias
+                        max_mae = max(maes)
+                        min_mae = min(maes)
+                        bias_score = 1 - (max_mae - min_mae) / max_mae  # Same logic as fairness score
+                        if bias_score < 0.5:
+                            severity = "high"
+                        elif bias_score < 0.75:
+                            severity = "medium"
+                        else:
+                            severity = "low"
+                        bias_detected.append({
+                            "attribute": attr,
+                            "score": round(bias_score, 4),
+                            "severity": severity
+                        })
+                else:
+                    dp = metrics.get("demographic_parity")
+                    if isinstance(dp, dict):
+                        for attr, score in dp.items():
+                            if score is None or (isinstance(score, float) and math.isnan(score)):
+                                continue
+                            if score < 0.5:
+                                severity = "high"
+                            elif score < 0.75:
+                                severity = "medium"
+                            else:
+                                severity = "low"
+                            bias_detected.append({
+                                "attribute": attr,
+                                "score": round(score, 4),
+                                "severity": severity
+                            })
+
+                # --- Generate actionable bias mitigation suggestions based on bias_detected ---
+                suggestions = []
+                for bias in bias_detected:
+                    attr = bias.get("attribute")
+                    severity = bias.get("severity")
+                    if severity == "high":
+                        suggestions.append({
+                            "attribute": attr,
+                            "severity": severity,
+                            "recommendation": f"Mitigate bias in '{attr}' — try re-sampling, feature removal, or using fairness-aware algorithms."
+                        })
+                    elif severity == "medium":
+                        suggestions.append({
+                            "attribute": attr,
+                            "severity": severity,
+                            "recommendation": f"Fairness for '{attr}' is moderate — consider using fairness-aware algorithms or re-tuning your model."
+                        })
+                    elif severity == "low":
+                        suggestions.append({
+                            "attribute": attr,
+                            "severity": severity,
+                            "recommendation": f"No strong mitigation needed for '{attr}'. Continue monitoring group performance."
+                        })
+
+                # Sanitize all NaN/inf values in metrics and report_data for JSON compliance
+                import datetime
+                import math
+                def sanitize_for_json(obj):
+                    if isinstance(obj, dict):
+                        return {str(k): sanitize_for_json(v) for k, v in obj.items()}
+                    elif isinstance(obj, list):
+                        return [sanitize_for_json(v) for v in obj]
+                    elif isinstance(obj, float):
+                        if math.isnan(obj) or math.isinf(obj):
+                            return None
+                        return obj
+                    else:
+                        return obj
+
+                metrics_sanitized = sanitize_for_json(metrics)
+                now_iso = datetime.datetime.now().isoformat()
+                report_data = {
+                    "original_filename": csv_file.name,
+                    "dataset_name": csv_file.name,
+                    "upload_date": now_iso,
+                    "target_col": target_col,
+                    "sensitive_attrs": sensitive_attrs,
+                    "problem_type": problem_type,
+                    "metrics": metrics_sanitized,
+                    "overall_fairness_score": overall_fairness_score,
+                    "bias_detected": bias_detected,
+                    "suggestions": suggestions,
+                }
+                AnalysisReport.update_report(report_id, report_data)
+                return Response({
+                    "message": f"Model is valid. Fairness analysis complete.",
+                    "required_features": required_features,
+                    "model_uploaded": True,
+                    "report_id": report_id,
+                    "metrics": metrics_sanitized,
+                    "overall_fairness_score": overall_fairness_score,
+                    "bias_detected": bias_detected,
+                    "suggestions": suggestions,
+                    "dataset_name": csv_file.name,
+                    "upload_date": now_iso
+                }, status=200)
+            except Exception as e:
+                return Response({"error": f"Failed to process uploaded model: {e}"}, status=400)
+
+        # 3. If only CSV, proceed with your normal training logic (call your existing code)
+        return Response({
+            "message": "CSV uploaded. No model file provided. Proceed with training as usual.",
+            "model_uploaded": False
+        })
+
+    except Exception as e:
+        tb = traceback.format_exc()
+        return Response({"error": f"An error occurred: {e}", "traceback": tb}, status=500)

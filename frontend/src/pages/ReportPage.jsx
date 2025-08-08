@@ -133,9 +133,12 @@ const ReportPage = () => {
 
   // Defensive fallback for missing fields
   const metrics = reportData.metrics ?? {};
+  // Always fallback to [] if bias_detected is null/undefined
   const biasDetected = Array.isArray(reportData.bias_detected)
     ? reportData.bias_detected
-    : [];
+    : reportData.bias_detected && typeof reportData.bias_detected === 'object'
+      ? Object.values(reportData.bias_detected)
+      : [];
   const suggestions = Array.isArray(reportData.suggestions)
     ? reportData.suggestions
     : [];
@@ -146,12 +149,16 @@ const ReportPage = () => {
     reportData.dataset_name !== ""
       ? reportData.dataset_name
       : reportData.filename || reportData.file_name || "N/A";
-  const uploadDate =
+  let uploadDate =
     reportData.upload_date !== undefined &&
     reportData.upload_date !== null &&
     reportData.upload_date !== ""
       ? reportData.upload_date
       : reportData.created_at || reportData.timestamp || "N/A";
+  // Only show date part if uploadDate is ISO string
+  if (uploadDate && typeof uploadDate === "string" && uploadDate.includes("T")) {
+    uploadDate = uploadDate.split("T")[0];
+  }
   const overallFairnessScore = reportData.overall_fairness_score ?? "N/A";
   const exportToPDF = () => {
     const element = reportRef.current;

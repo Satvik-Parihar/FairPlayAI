@@ -1,4 +1,3 @@
-
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar } from "recharts";
 
@@ -8,10 +7,14 @@ const GraphDisplay = ({ title, type, data }) => {
       metric: key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
       value: value * 100
     }));
-
+    // Only keep valid numbers
+    const validRadarData = radarData.filter(d => typeof d.value === 'number' && !isNaN(d.value));
+    if (validRadarData.length === 0) {
+      return <div className="text-center text-gray-500 py-8">No fairness metric data available for radar chart.</div>;
+    }
     return (
       <ResponsiveContainer width="100%" height={300}>
-        <RadarChart data={radarData}>
+        <RadarChart data={validRadarData}>
           <PolarGrid />
           <PolarAngleAxis dataKey="metric" className="text-sm" />
           <PolarRadiusAxis 
@@ -36,12 +39,19 @@ const GraphDisplay = ({ title, type, data }) => {
   };
 
   const renderBarChart = () => {
-    const barData = data.map(item => ({
-      attribute: item.attribute.charAt(0).toUpperCase() + item.attribute.slice(1),
-      score: item.score * 100,
-      severity: item.severity
-    }));
-
+    if (!Array.isArray(data) || data.length === 0) {
+      return <div className="text-center text-gray-500 py-8">No bias detection data available for bar chart.</div>;
+    }
+    const barData = data
+      .filter(item => item && typeof item.score === 'number' && !isNaN(item.score))
+      .map(item => ({
+        attribute: item.attribute.charAt(0).toUpperCase() + item.attribute.slice(1),
+        score: item.score * 100,
+        severity: item.severity
+      }));
+    if (barData.length === 0) {
+      return <div className="text-center text-gray-500 py-8">No valid bias scores to display.</div>;
+    }
     return (
       <ResponsiveContainer width="100%" height={300}>
         <BarChart data={barData}>
