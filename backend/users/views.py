@@ -30,13 +30,6 @@ GITHUB_AUTH_URI = 'https://github.com/login/oauth/authorize'
 GITHUB_TOKEN_URI = 'https://github.com/login/oauth/access_token'
 GITHUB_USERINFO_URI = 'https://api.github.com/user'
 
-# def get_mongo_collection():
-#     # models.py — hardcoded (works)
-#     # MongoClient("mongodb://kasak:Project%40123@127.0.0.1:27017/fairness_audit?authSource=admin")
-
-#     client = MongoClient(settings.MONGO_DB['HOST'])
-#     db = client[settings.MONGO_DB['NAME']]
-#     return db, client
 def get_mongo_collection():
     client = MongoClient(settings.MONGO_DB['URI'])  # ✅ now uses full URI
     db = client[settings.MONGO_DB['NAME']]
@@ -69,6 +62,14 @@ def register_user(request):
         finally:
             client.close()
 
+    # If password error, return that message directly
+    if 'password' in serializer.errors:
+        password_errors = serializer.errors['password']
+        # password_errors can be a list of errors
+        if isinstance(password_errors, list) and password_errors:
+            return Response({'message': password_errors[0]}, status=400)
+        elif isinstance(password_errors, str):
+            return Response({'message': password_errors}, status=400)
     return Response({'message': 'Invalid data', 'errors': serializer.errors}, status=400)
 
 @api_view(['POST'])
