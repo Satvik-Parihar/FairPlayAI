@@ -21,7 +21,7 @@ import {
   CheckCircle,
   XCircle,
 } from "lucide-react";
-import html2pdf from "html2pdf.js";
+
 
 // import { useRef } from "react";
 
@@ -160,16 +160,30 @@ const ReportPage = () => {
     uploadDate = uploadDate.split("T")[0];
   }
   const overallFairnessScore = reportData.overall_fairness_score ?? "N/A";
-  const exportToPDF = () => {
-    const element = reportRef.current;
-    const opt = {
-      margin: 0.5,
-      filename: `${reportData.dataset_name}_fairness_report.pdf`,
-      image: { type: "jpeg", quality: 0.98 },
-      html2canvas: { scale: 2 },
-      jsPDF: { unit: "in", format: "letter", orientation: "portrait" },
-    };
-    html2pdf().set(opt).from(element).save();
+  const exportToPDF = async () => {
+    if (!reportData || !reportData._id) return;
+    try {
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch(`http://localhost:8000/api/reports/${reportData._id}/export-pdf/`, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/pdf',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+        },
+      });
+      if (!response.ok) throw new Error('Failed to export PDF');
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${reportData.dataset_name || 'report'}_fairness_report.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      alert('Failed to export PDF.');
+    }
   };
 
   return (

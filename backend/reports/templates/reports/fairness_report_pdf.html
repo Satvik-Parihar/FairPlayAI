@@ -1,0 +1,229 @@
+{% extends "base.html" %}
+{% block content %}
+
+<style>
+  h1, h2 {
+    margin-top: 20px;
+    font-weight: bold;
+    border-bottom: 2px solid #444;
+    padding-bottom: 4px;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 10px;
+    margin-bottom: 20px;
+    font-size: 12px;
+    table-layout: fixed; /* Enforce column sizing */
+  }
+  th, td {
+    border: 1px solid #999;
+    padding: 4px 6px;
+    vertical-align: top;
+    word-wrap: break-word;
+    overflow-wrap: anywhere;
+  }
+  th {
+    background-color: #f2f2f2;
+    font-weight: bold;
+    text-align: left;
+  }
+  tr:nth-child(even) {
+    background-color: #fafafa;
+  }
+  .number {
+    text-align: right;
+  }
+  .wrap-text {
+    white-space: normal;
+    word-wrap: break-word;
+  }
+
+  /* Nested table styling */
+  .nested-table {
+    font-size: 9px;
+    margin: 4px 0 4px 15px; /* indent nested tables */
+    border-collapse: collapse;
+    table-layout: fixed;
+    width: 100%;
+  }
+  .nested-table th, .nested-table td {
+    border: 1px solid #bbb;
+    padding: 2px 4px;
+    vertical-align: top;
+  }
+  .nested-table th {
+    background-color: #f8f8f8;
+    font-weight: bold;
+  }
+  .nested-table tr:nth-child(even) {
+    background-color: #fefefe;
+  }
+  .nested-key {
+    width: 65%;
+    text-align: left;
+    word-break: break-all;
+  }
+  .nested-value {
+    width: 35%;
+    text-align: right;
+    white-space: nowrap;
+  }
+</style>
+
+<h1>Fairness Report for {{ report.dataset_name|default:"Dataset" }}</h1>
+<p>Generated on: {{ report.created_at }}</p>
+
+<!-- Metrics -->
+<h2>Metrics</h2>
+{% if metrics %}
+<table>
+  <thead>
+    <tr>
+      <th>Metric</th>
+      <th>Value</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for metric_name, metric_value in metrics.items %}
+    <tr>
+      <td>{{ metric_name }}</td>
+      <td>
+        {% if metric_value.items %}
+          <table class="nested-table">
+            <thead>
+              <tr>
+                <th class="nested-key">Sub-metric</th>
+                <th class="nested-value">Value</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for sub_name, sub_value in metric_value.items %}
+              <tr>
+                <td class="nested-key">{{ sub_name }}</td>
+                <td>
+                  {% if sub_value.items %}
+                    <table class="nested-table">
+                      <thead>
+                        <tr>
+                          <th class="nested-key">Key</th>
+                          <th class="nested-value">Value</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {% for inner_key, inner_value in sub_value.items %}
+                        <tr>
+                          <td class="nested-key" title="{{ inner_key }}">
+                            {{ inner_key|slice:":8" }}{% if inner_key|length > 8 %}...{% endif %}
+                          </td>
+                          <td class="nested-value">
+                            {{ inner_value|floatformat:"3" }}
+                          </td>
+                        </tr>
+                        {% endfor %}
+                      </tbody>
+                    </table>
+                  {% else %}
+                    {{ sub_value|floatformat:"3" }}
+                  {% endif %}
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        {% else %}
+          {{ metric_value|floatformat:"3" }}
+        {% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p>No metrics available.</p>
+{% endif %}
+
+<!-- Suggestions -->
+<h2>Suggestions</h2>
+{% if suggestions %}
+<table>
+  <thead>
+    <tr>
+      <th>Type</th>
+      <th>Priority</th>
+      <th>Description</th>
+      <th>Attribute</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for s in suggestions %}
+    <tr>
+      <td>{{ s.type }}</td>
+      <td>{{ s.priority }}</td>
+      <td class="wrap-text">{{ s.description }}</td>
+      <td>{{ s.attribute }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p>No suggestions available.</p>
+{% endif %}
+
+<!-- Sensitive Attributes -->
+<h2>Sensitive Attributes</h2>
+{% if sensitive_attributes %}
+<table>
+  <thead>
+    <tr>
+      <th>Attribute</th>
+      <th>Metrics</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for attr, metrics in sensitive_attributes.items %}
+    <tr>
+      <td>{{ attr }}</td>
+      <td>
+        {% if metrics.items %}
+          <table class="nested-table">
+            <thead>
+              <tr>
+                <th class="nested-key">Metric</th>
+                <th class="nested-value">Value</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for m_key, m_val in metrics.items %}
+              <tr>
+                <td class="nested-key">{{ m_key }}</td>
+                <td class="nested-value">
+                  {{ m_val|floatformat:"3" }}
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        {% else %}
+          {{ metrics }}
+        {% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p>No sensitive attributes available.</p>
+{% endif %}
+
+<!-- Charts -->
+<h2>Charts</h2>
+{% if charts %}
+{% for chart in charts %}
+  <img src="{{ chart }}" style="max-width: 600px; margin-bottom: 20px;" />
+{% endfor %}
+{% else %}
+<p>No charts available.</p>
+{% endif %}
+
+{% endblock %}
