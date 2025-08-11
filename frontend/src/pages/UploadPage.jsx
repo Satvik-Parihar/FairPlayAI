@@ -449,6 +449,13 @@ const handleDualUpload = async () => {
                 onFileSelect={
                   isAuthenticated ? (file) => setCsvFile(file) : undefined
                 }
+                onError={({ type, message }) => {
+                  toast({
+                    title: type === "size" ? "File Too Large" : "Invalid File Type",
+                    description: message,
+                    variant: "destructive",
+                  });
+                }}
                 selectedFile={csvFile}
                 placeholder={
                   isAuthenticated

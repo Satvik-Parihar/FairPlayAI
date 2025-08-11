@@ -9,7 +9,8 @@ const FileUploader = ({
   onFileSelect, 
   selectedFile, 
   placeholder, 
-  disabled = false
+  disabled = false,
+  onError
 }) => {
   const [isDragActive, setIsDragActive] = useState(false);
 
@@ -38,13 +39,23 @@ const FileUploader = ({
     // Check file type
     const fileExtension = '.' + file.name.split('.').pop().toLowerCase();
     if (!acceptedTypes.includes(fileExtension)) {
-      alert(`Please select a ${acceptedTypes} file`);
+      if (onError) {
+        onError({
+          type: "type",
+          message: `Please select a ${acceptedTypes} file`,
+        });
+      }
       return;
     }
 
     // Check file size (maxSize is in MB)
     if (file.size > maxSize * 1024 * 1024) {
-      alert(`File size must be less than ${maxSize}MB`);
+      if (onError) {
+        onError({
+          type: "size",
+          message: `File size must be less than ${maxSize}MB`,
+        });
+      }
       return;
     }
 

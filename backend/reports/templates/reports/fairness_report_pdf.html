@@ -225,5 +225,10 @@
 {% else %}
 <p>No charts available.</p>
 {% endif %}
-
+{% if chart_paths %}
+  {% for name, path in chart_paths.items %}
+    <h3>{{ name|title }} Chart</h3>
+    <img src="{{ path }}" style="width:400px; max-width:100%;" />
+  {% endfor %}
+{% endif %}
 {% endblock %}
