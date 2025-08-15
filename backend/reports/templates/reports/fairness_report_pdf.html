@@ -2,35 +2,84 @@
 {% block content %}
 
 <style>
-  h1, h2 {
-    margin-top: 20px;
+  body {
+    font-size: 15px;
+    color: #222;
+    background: #fff;
+  }
+  h1, h2, h3 {
+    margin-top: 32px;
     font-weight: bold;
     border-bottom: 2px solid #444;
-    padding-bottom: 4px;
+    padding-bottom: 6px;
+    color: #2a4d8f;
+    letter-spacing: 1px;
+  }
+  h1 {
+    font-size: 2.2em;
+    margin-bottom: 18px;
+  }
+  h2 {
+    font-size: 1.5em;
+    margin-bottom: 12px;
+  }
+  h3 {
+    font-size: 1.2em;
+    margin-bottom: 8px;
+    color: #3b6ea5;
+  }
+  .section {
+    margin-bottom: 40px;
+    page-break-before: always;
+  }
+  .section:first-child {
+    page-break-before: auto;
   }
   table {
     width: 100%;
     border-collapse: collapse;
-    margin-top: 10px;
-    margin-bottom: 20px;
-    font-size: 12px;
-    table-layout: fixed; /* Enforce column sizing */
+    margin-top: 18px;
+    margin-bottom: 28px;
+    font-size: 14px;
+    table-layout: fixed;
+    background: #fff;
+    box-shadow: 0 2px 8px #eee;
   }
+  caption {
+    caption-side: top;
+    font-weight: bold;
+    font-size: 1.1em;
+    color: #2a4d8f;
+    margin-bottom: 8px;
+    letter-spacing: 0.5px;
+  }
+  /* Table column widths for metric tables */
+  /* Two-column tables: 50%/50% */
+  .table-2col th, .table-2col td { width: 50%; }
+  /* Three-column tables: 33.33% each */
+  .table-3col th, .table-3col td { width: 33.33%; }
+  /* Four-column tables: 25% each */
+  .table-4col th, .table-4col td { width: 25%; }
+
   th, td {
     border: 1px solid #999;
-    padding: 4px 6px;
-    vertical-align: top;
+    padding: 10px 12px;
+    vertical-align: middle;
+    text-align: left;
     word-wrap: break-word;
     overflow-wrap: anywhere;
   }
   th {
-    background-color: #f2f2f2;
+    background-color: #eaf0fa;
     font-weight: bold;
-    text-align: left;
+    color: #1d3557;
+    /* Ensure headers are bold and clear */
+    font-size: 1em;
+    white-space: normal;
   }
-  tr:nth-child(even) {
-    background-color: #fafafa;
-  }
+  /* Explicit column widths for metric tables */
+  .col-group { width: 35%; }
+  .col-value, .col-parity, .col-tpr, .col-fpr, .col-calib, .col-fair { width: 32%; }
   .number {
     text-align: right;
   }
@@ -38,23 +87,40 @@
     white-space: normal;
     word-wrap: break-word;
   }
-
+  .key-value {
+    font-weight: bold;
+    color: #d7263d;
+  }
+  .priority-high {
+    color: #d7263d;
+    font-weight: bold;
+  }
+  .priority-medium {
+    color: #fbb13c;
+    font-weight: bold;
+  }
+  .priority-low {
+    color: #3bb273;
+    font-weight: bold;
+  }
   /* Nested table styling */
   .nested-table {
-    font-size: 9px;
-    margin: 4px 0 4px 15px; /* indent nested tables */
+    font-size: 11px;
+    margin: 6px 0 6px 18px;
     border-collapse: collapse;
     table-layout: fixed;
     width: 100%;
+    background: #f8fafd;
   }
   .nested-table th, .nested-table td {
     border: 1px solid #bbb;
-    padding: 2px 4px;
+    padding: 4px 7px;
     vertical-align: top;
   }
   .nested-table th {
-    background-color: #f8f8f8;
+    background-color: #f0f4fa;
     font-weight: bold;
+    color: #1d3557;
   }
   .nested-table tr:nth-child(even) {
     background-color: #fefefe;
@@ -68,167 +134,333 @@
     width: 35%;
     text-align: right;
     white-space: nowrap;
+    font-weight: bold;
+    color: #2a9d8f;
+  }
+  /* Center images */
+  .center-img {
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
+    margin-bottom: 24px;
+    border: 1px solid #ddd;
+    box-shadow: 0 2px 8px #eee;
+    background: #fff;
+    padding: 6px;
+  }
+  /* Page break for print/PDF */
+  .page-break {
+    page-break-before: always;
   }
 </style>
 
-<h1>Fairness Report for {{ report.dataset_name|default:"Dataset" }}</h1>
-<p>Generated on: {{ report.created_at }}</p>
+<!-- First section: Title and Metrics on same page -->
+<div class="section">
+  <h1>Fairness Report for <span class="key-value">{{ report.dataset_name|default:"Dataset" }}</span></h1>
+  <p>Target Column: <span class="key-value">{{ report.target_column|default:"Target" }}</span></p>
+  <p>Generated on: <span class="key-value">{{ report.created_at }}</span></p>
 
-<!-- Metrics -->
-<h2>Metrics</h2>
-{% if metrics %}
-<table>
-  <thead>
-    <tr>
-      <th>Metric</th>
-      <th>Value</th>
-    </tr>
-  </thead>
-  <tbody>
-    {% for metric_name, metric_value in metrics.items %}
-    <tr>
-      <td>{{ metric_name }}</td>
-      <td>
-        {% if metric_value.items %}
-          <table class="nested-table">
-            <thead>
-              <tr>
-                <th class="nested-key">Sub-metric</th>
-                <th class="nested-value">Value</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for sub_name, sub_value in metric_value.items %}
-              <tr>
-                <td class="nested-key">{{ sub_name }}</td>
-                <td>
-                  {% if sub_value.items %}
-                    <table class="nested-table">
-                      <thead>
-                        <tr>
-                          <th class="nested-key">Key</th>
-                          <th class="nested-value">Value</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {% for inner_key, inner_value in sub_value.items %}
-                        <tr>
-                          <td class="nested-key" title="{{ inner_key }}">
-                            {{ inner_key|slice:":8" }}{% if inner_key|length > 8 %}...{% endif %}
-                          </td>
-                          <td class="nested-value">
-                            {{ inner_value|floatformat:"3" }}
-                          </td>
-                        </tr>
-                        {% endfor %}
-                      </tbody>
-                    </table>
-                  {% else %}
-                    {{ sub_value|floatformat:"3" }}
-                  {% endif %}
-                </td>
-              </tr>
-              {% endfor %}
-            </tbody>
-          </table>
-        {% else %}
-          {{ metric_value|floatformat:"3" }}
+  <h2>Overall Fairness Score</h2>
+  <table class="table-2col">
+    <caption>Overall Fairness Score</caption>
+    <thead>
+      <tr>
+        <th>Score</th>
+        <th>Interpretation</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="key-value">{{ overall_fairness_score|floatformat:"2" }}</td>
+        <td>
+          {% if overall_fairness_score >= 8 %}
+            <span class="priority-low">High Fairness</span>
+          {% elif overall_fairness_score >= 5 %}
+            <span class="priority-medium">Moderate Fairness</span>
+          {% else %}
+            <span class="priority-high">Low Fairness</span>
+          {% endif %}
+        </td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2>Fairness Metrics Overview</h2>
+  {% if metrics %}
+  <table class="table-2col">
+    <caption>Fairness Metrics Overview</caption>
+    <thead>
+      <tr>
+        <th>Metric</th>
+        <th>Value</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for metric_name, metric_value in metrics.items %}
+        {% if metric_name in "accuracy,precision,recall,f1_score,roc_auc" %}
+        <tr>
+          <td class="key-value">{{ metric_name|title|cut:"_" }}</td>
+          <td><span class="key-value">{{ metric_value|floatformat:"3" }}</span></td>
+        </tr>
         {% endif %}
-      </td>
-    </tr>
-    {% endfor %}
-  </tbody>
-</table>
-{% else %}
-<p>No metrics available.</p>
-{% endif %}
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p>No metrics available.</p>
+  {% endif %}
+</div>
 
-<!-- Suggestions -->
-<h2>Suggestions</h2>
-{% if suggestions %}
-<table>
-  <thead>
-    <tr>
-      <th>Type</th>
-      <th>Priority</th>
-      <th>Description</th>
-      <th>Attribute</th>
-    </tr>
-  </thead>
-  <tbody>
-    {% for s in suggestions %}
-    <tr>
-      <td>{{ s.type }}</td>
-      <td>{{ s.priority }}</td>
-      <td class="wrap-text">{{ s.description }}</td>
-      <td>{{ s.attribute }}</td>
-    </tr>
-    {% endfor %}
-  </tbody>
-</table>
-{% else %}
-<p>No suggestions available.</p>
-{% endif %}
+<!-- Individual Metric Tables -->
+<div class="section page-break">
+  <h2>Demographic Parity</h2>
+  {% if metrics.demographic_parity %}
+    <table class="table-2col">
+      <caption>Demographic Parity Metrics</caption>
+      <thead>
+        <tr>
+          <th>Group</th>
+          <th>Parity Value</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for group, value in metrics.demographic_parity.items %}
+        <tr>
+          <td class="key-value">{{ group|title }}</td>
+          <td class="key-value">
+            {% if value is not None %}
+              {{ value|floatformat:"3" }}
+            {% else %}
+              N/A
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <p>No Demographic Parity metrics available.</p>
+  {% endif %}
+</div>
 
-<!-- Sensitive Attributes -->
-<h2>Sensitive Attributes</h2>
-{% if sensitive_attributes %}
-<table>
-  <thead>
-    <tr>
-      <th>Attribute</th>
-      <th>Metrics</th>
-    </tr>
-  </thead>
-  <tbody>
-    {% for attr, metrics in sensitive_attributes.items %}
-    <tr>
-      <td>{{ attr }}</td>
-      <td>
-        {% if metrics.items %}
-          <table class="nested-table">
-            <thead>
-              <tr>
-                <th class="nested-key">Metric</th>
-                <th class="nested-value">Value</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for m_key, m_val in metrics.items %}
-              <tr>
-                <td class="nested-key">{{ m_key }}</td>
-                <td class="nested-value">
-                  {{ m_val|floatformat:"3" }}
-                </td>
-              </tr>
-              {% endfor %}
-            </tbody>
-          </table>
-        {% else %}
-          {{ metrics }}
-        {% endif %}
-      </td>
-    </tr>
-    {% endfor %}
-  </tbody>
-</table>
-{% else %}
-<p>No sensitive attributes available.</p>
-{% endif %}
+<div class="section page-break">
+  <h2>Equalized Odds</h2>
+  {% if metrics.equalized_odds %}
+    <table class="table-2col">
+      <caption>Equalized Odds Metrics</caption>
+      <thead>
+        <tr>
+          <th>Attribute</th>
+          <th>Score</th>
+          
+        </tr>
+      </thead>
+      <tbody>
+        {% for attr, odds in metrics.equalized_odds.items %}
+        <tr>
+          <td class="key-value">{{ attr }}</td>
+          <td class="key-value">
+            {% if odds != None and odds != 1 and odds != 0 %}
+              {{ odds|floatformat:"3" }}
+            {% elif odds == 1 %}
+              1.000
+            {% elif odds == 0 %}
+              0.000
+            {% else %}
+              N/A
+            {% endif %}
+          </td>
+          
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <p>No Equalized Odds metrics available.</p>
+  {% endif %}
+</div>
 
-<!-- Charts -->
-<h2>Charts</h2>
-{% if charts %}
-{% for chart in charts %}
-  <img src="{{ chart }}" style="max-width: 600px; margin-bottom: 20px;" />
-{% endfor %}
-{% else %}
-<p>No charts available.</p>
-{% endif %}
-{% if chart_paths %}
-  {% for name, path in chart_paths.items %}
-    <h3>{{ name|title }} Chart</h3>
-    <img src="{{ path }}" style="width:400px; max-width:100%;" />
-  {% endfor %}
-{% endif %}
+<div class="section page-break">
+  <h2>Calibration</h2>
+  {% if metrics.calibration %}
+    {% for attr, values in metrics.calibration.items %}
+      <h3>{{ attr|title }} Calibration</h3>
+      <table class="table-2col">
+        <caption>Calibration for {{ attr|title }}</caption>
+        <thead>
+          <tr>
+            <th>{{ attr|title }} Value</th>
+            <th>Calibration</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for k, v in values.items %}
+          <tr>
+            <td class="key-value">{{ k }}</td>
+            <td class="key-value">
+              {% if v is float or v is integer %}
+                {{ v|floatformat:"3" }}
+              {% else %}
+                {{ v }}
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% endfor %}
+  {% elif calibration_table_html %}
+    {{ calibration_table_html|safe }}
+  {% else %}
+    <p>No calibration data available.</p>
+  {% endif %}
+</div>
+
+<div class="section page-break">
+  <h2>Individual Fairness</h2>
+  {% if metrics.individual_fairness %}
+    {% for attr, values in metrics.individual_fairness.items %}
+      <h3>{{ attr|title }} Individual Fairness</h3>
+      <table class="table-2col">
+        <caption>Individual Fairness for {{ attr|title }}</caption>
+        <thead>
+          <tr>
+            <th>{{ attr|title }} Value</th>
+            <th>Fairness Value</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for k, v in values.items %}
+          <tr>
+            <td class="key-value">{{ k }}</td>
+            <td class="key-value">
+              {% if v is float or v is integer %}
+                {{ v|floatformat:"3" }}
+              {% else %}
+                {{ v }}
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% endfor %}
+  {% else %}
+    <p>No Individual Fairness metrics available.</p>
+  {% endif %}
+</div>
+
+<div class="section page-break">
+  <h2>Suggestions</h2>
+  {% if suggestions %}
+  <table>
+    <caption>Fairness Improvement Suggestions</caption>
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Priority</th>
+        <th>Description</th>
+        <th>Attribute</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for s in suggestions %}
+      <tr>
+        <td class="key-value">{{ s.type }}</td>
+        <td>
+          <span class=""
+            {% if s.priority == 'High' %}priority-high{% elif s.priority == 'Medium' %}priority-medium{% else %}priority-low{% endif %}
+          ">{{ s.priority }}</span>
+        </td>
+        <td class="wrap-text">{{ s.description }}</td>
+        <td class="key-value">{{ s.attribute }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p>No suggestions available.</p>
+  {% endif %}
+</div>
+
+<div class="section page-break">
+  <h2>Sensitive Attributes</h2>
+  {% if sensitive_attributes %}
+  <table>
+    <caption>Sensitive Attribute Metrics</caption>
+    <thead>
+      <tr>
+        <th>Attribute</th>
+        <th>Metrics</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for attr, metrics in sensitive_attributes.items %}
+      <tr>
+        <td class="key-value">{{ attr }}</td>
+        <td>
+          {% if metrics.items %}
+            <table class="nested-table">
+              <caption>Metrics for <span class="key-value">{{ attr }}</span></caption>
+              <thead>
+                <tr>
+                  <th class="nested-key">Metric</th>
+                  <th class="nested-value">Value</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for m_key, m_val in metrics.items %}
+                <tr>
+                  <td class="nested-key">{{ m_key }}</td>
+                  <td class="nested-value">
+                    <span class="key-value">{{ m_val|floatformat:"3" }}</span>
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          {% else %}
+            <span class="key-value">{{ metrics }}</span>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p>No sensitive attributes available.</p>
+  {% endif %}
+</div>
+
+<div class="section page-break">
+  <h2>Charts</h2>
+  {% if charts %}
+    {% for chart in charts %}
+      <img src="{{ chart }}" class="center-img" style="max-width: 600px;" alt="Chart" />
+    {% endfor %}
+  {% else %}
+    <p>No charts available.</p>
+  {% endif %}
+  {% if chart_paths %}
+    {% for name, path in chart_paths.items %}
+      <h3>{{ name|title }} Chart</h3>
+      <img src="{{ path }}" class="center-img" style="width:400px; max-width:100%;" alt="{{ name }} chart" />
+    {% endfor %}
+  {% endif %}
+  {% if frontend_viz_path %}
+      <h3>Visualizations Snapshot</h3>
+      <img src="{{ frontend_viz_path }}" class="center-img" style="width:100%;max-width:600px;" alt="Visualization Snapshot" />
+      <img src="{{ chart_paths.demographic_parity }}" class="center-img" style="width:400px;max-width:100%;" alt="Demographic Parity Chart" />
+  {% endif %}
+</div>
+
+    
+      
+    </tbody>
+  </table>
+  <p>
+    <strong>Note:</strong> Attributes with <span class="priority-high">High</span> or <span class="priority-medium">Medium</span> severity may require further fairness mitigation.
+  </p>
+</div>
+
 {% endblock %}

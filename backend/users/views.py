@@ -13,6 +13,8 @@ import requests
 import os
 import traceback
 import uuid
+from rest_framework_simplejwt.tokens import RefreshToken
+from django.contrib.auth.models import User
 
 # Google OAuth Settings
 GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID")
@@ -81,8 +83,7 @@ def login_user(request):
         return Response({'message': 'Email and password required'}, status=400)
 
     try:
-        from rest_framework_simplejwt.tokens import RefreshToken
-        from django.contrib.auth.models import User
+        
         db, client = get_mongo_collection()
         user = db.appuser.find_one({'email': email})
 

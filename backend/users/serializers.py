@@ -1,9 +1,5 @@
-
-
 from rest_framework import serializers
 from .models import AppUser
-# Import regex validation from registration_serializer
-from .registration_serializer import RegistrationSerializer
 
 
 class AppUserSerializer(serializers.Serializer):

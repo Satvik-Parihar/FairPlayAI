@@ -2,6 +2,7 @@ import { useParams } from "react-router-dom";
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useApi } from "../hooks/useApi";
 import { useToast } from "../hooks/use-toast";
+import html2canvas from "html2canvas";
 import {
   Card,
   CardContent,
@@ -163,13 +164,22 @@ const ReportPage = () => {
   const exportToPDF = async () => {
     if (!reportData || !reportData._id) return;
     try {
+       const vizSection = document.getElementById("visualizations-section");
+    let vizImageBase64 = null;
+    if (vizSection) {
+      const canvas = await html2canvas(vizSection, { backgroundColor: "#fff" });
+      vizImageBase64 = canvas.toDataURL("image/png");
+    }
       const token = localStorage.getItem('auth_token');
       const response = await fetch(`http://localhost:8000/api/reports/${reportData._id}/export-pdf/`, {
-        method: 'GET',
+         method: 'POST',
         headers: {
           'Accept': 'application/pdf',
           ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
         },
+        body: JSON.stringify({
+        viz_image: vizImageBase64,
+      }),
       });
       if (!response.ok) throw new Error('Failed to export PDF');
       const blob = await response.blob();
@@ -182,7 +192,7 @@ const ReportPage = () => {
       a.remove();
       window.URL.revokeObjectURL(url);
     } catch (err) {
-      alert('Failed to export PDF.');
+      alert('Failed to export PDFs.'+err);
     }
   };
 
@@ -637,7 +647,7 @@ const ReportPage = () => {
         </Card>
 
         {/* Visualizations */}
-        <div className="grid lg:grid-cols-2 gap-8 mb-8">
+        <div className="grid lg:grid-cols-2 gap-8 mb-8"  id="visualizations-section">
           {/* Prepare radar chart data: use mean value for object metrics */}
           {(() => {
             // Recursively collect all numbers from a value (number, object, array)
@@ -677,10 +687,6 @@ const ReportPage = () => {
   );
 };
 
-// export default ReportPage;
-
-// Legend/Guide Modal component
-// import { useState } from "react";
 
 const LegendGuideModal = ({ open, onClose }) => {
   if (!open) return null;
