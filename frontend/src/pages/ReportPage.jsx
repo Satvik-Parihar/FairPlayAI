@@ -211,10 +211,10 @@ const ReportPage = () => {
               </p>
             </div>
             <div className="flex space-x-3 print:hidden">
-              <Button variant="outline" size="sm">
+              {/* <Button variant="outline" size="sm">
                 <Share className="h-4 w-4 mr-2" />
                 Share
-              </Button>
+              </Button> */}
               {/* <Button variant="outline" size="sm">
               <Download className="h-4 w-4 mr-2" />
               Export PDF

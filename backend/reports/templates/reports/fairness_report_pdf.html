@@ -1,3 +1,4 @@
+
 {% extends "base.html" %}
 {% block content %}
 
@@ -30,7 +31,7 @@
   }
   .section {
     margin-bottom: 40px;
-    page-break-before: always;
+    /* page-break-before: always; */
   }
   .section:first-child {
     page-break-before: auto;
@@ -69,6 +70,7 @@
     word-wrap: break-word;
     overflow-wrap: anywhere;
   }
+  
   th {
     background-color: #eaf0fa;
     font-weight: bold;
@@ -383,7 +385,7 @@
   {% endif %}
 </div>
 
-<div class="section page-break">
+<!-- <div class="section page-break">
   <h2>Sensitive Attributes</h2>
   {% if sensitive_attributes %}
   <table>
@@ -430,32 +432,30 @@
   {% else %}
   <p>No sensitive attributes available.</p>
   {% endif %}
-</div>
+</div> -->
 
 <div class="section page-break">
   <h2>Charts</h2>
-  {% if charts %}
+  <!-- {% if charts %}
     {% for chart in charts %}
       <img src="{{ chart }}" class="center-img" style="max-width: 600px;" alt="Chart" />
     {% endfor %}
   {% else %}
     <p>No charts available.</p>
-  {% endif %}
+  {% endif %} -->
   {% if chart_paths %}
     {% for name, path in chart_paths.items %}
       <h3>{{ name|title }} Chart</h3>
       <img src="{{ path }}" class="center-img" style="width:400px; max-width:100%;" alt="{{ name }} chart" />
     {% endfor %}
   {% endif %}
-  {% if frontend_viz_path %}
+  <!-- {% if frontend_viz_path %}
       <h3>Visualizations Snapshot</h3>
       <img src="{{ frontend_viz_path }}" class="center-img" style="width:100%;max-width:600px;" alt="Visualization Snapshot" />
       <img src="{{ chart_paths.demographic_parity }}" class="center-img" style="width:400px;max-width:100%;" alt="Demographic Parity Chart" />
-  {% endif %}
+  {% endif %} -->
 </div>
 
-    
-      
     </tbody>
   </table>
   <p>
