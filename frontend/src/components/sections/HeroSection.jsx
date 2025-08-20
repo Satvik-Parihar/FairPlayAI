@@ -52,7 +52,7 @@ const HeroSection = () => {
 
         {/* CTA Buttons */}
         <div className={`flex flex-col sm:flex-row gap-6 justify-center items-center mb-16 transition-all duration-700 delay-900 ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-8 opacity-0'}`}>
-          <Link to="/upload">
+          <Link to="/login">
             <Button size="lg" className="group relative overflow-hidden bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-10 py-6 text-lg font-semibold shadow-2xl hover:shadow-blue-500/25 transition-all duration-300 transform hover:scale-105 border-0">
               <div className="absolute inset-0 bg-white/10 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700" />
               <Upload className="mr-3 h-6 w-6" />
@@ -60,10 +60,7 @@ const HeroSection = () => {
               <ArrowRight className="ml-3 h-5 w-5 group-hover:translate-x-1 transition-transform" />
             </Button>
           </Link>
-          <Button variant="outline" size="lg" className="group border-2 border-gray-300/50 text-gray-300 hover:bg-white/10 hover:border-white/50 hover:text-white px-10 py-6 text-lg font-semibold backdrop-blur-sm transition-all duration-300">
-            <Play className="mr-3 h-5 w-5" />
-            Watch Demo
-          </Button>
+          
         </div>
 
         {/* Social Proof Stats */}

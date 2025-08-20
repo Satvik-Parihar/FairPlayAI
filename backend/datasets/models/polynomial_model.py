@@ -3,7 +3,7 @@ from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import PolynomialFeatures
 from sklearn.metrics import r2_score, mean_squared_error, mean_absolute_error
 
-def train_best_polynomial(X_train, X_test, y_train, y_test, max_degree=10):
+def train_best_polynomial(X_train, X_test, y_train, y_test, max_degree=50):
     best_score = float('-inf')
     best_model = None
     best_degree = None

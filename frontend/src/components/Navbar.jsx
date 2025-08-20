@@ -17,7 +17,7 @@ const Navbar = () => {
   const navigation = [
     { name: "Home", href: "/", icon: Home },
     { name: "Upload", href: "/upload", icon: Upload },
-    { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+    
   ];
   
   const handleLogout = () => {

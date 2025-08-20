@@ -215,10 +215,7 @@ const ReportPage = () => {
                 <Share className="h-4 w-4 mr-2" />
                 Share
               </Button> */}
-              {/* <Button variant="outline" size="sm">
-              <Download className="h-4 w-4 mr-2" />
-              Export PDF
-            </Button> */}
+              
               <Button variant="outline" size="sm" onClick={exportToPDF}>
                 <Download className="h-4 w-4 mr-2" />
                 Export PDF

@@ -65,10 +65,10 @@ const SuggestionBox = ({ suggestions }) => {
                 <p className="text-gray-600 mb-3 leading-relaxed">
                   {recommendation}
                 </p>
-                <Button variant="outline" size="sm" className="flex items-center space-x-1">
+                {/* <Button variant="outline" size="sm" className="flex items-center space-x-1">
                   <span>Learn More</span>
                   <ArrowRight className="h-3 w-3" />
-                </Button>
+                </Button> */}
               </div>
             );
           })}

@@ -33,7 +33,7 @@ const FeaturesSection = () => {
       gradient: "from-green-500 to-emerald-500",
       bgColor: "bg-green-50",
       iconColor: "text-green-600",
-      stats: "15+ chart types"
+      stats: "2 chart types"
     },
     {
       icon: Shield,

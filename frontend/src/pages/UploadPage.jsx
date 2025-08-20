@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 
-
 import { useNavigate } from "react-router-dom";
 import {
   Card,
@@ -44,12 +43,13 @@ const UploadPage = () => {
 
   const { toast } = useToast();
   const navigate = useNavigate();
-// Validate model and dataset columns before analysis
+  // Validate model and dataset columns before analysis
   const validateModelDataset = async (csvFile, modelFile) => {
     if (!csvFile || !modelFile) {
       toast({
         title: "Validation Error",
-        description: "Both dataset and model files are required for validation.",
+        description:
+          "Both dataset and model files are required for validation.",
         variant: "destructive",
       });
       return false;
@@ -62,13 +62,19 @@ const UploadPage = () => {
       formData.append("sensitive_attrs", JSON.stringify(selectedAttributes));
     }
     try {
-      const res = await axios.post("http://localhost:8000/api/datasets/validate-model-dataset/", formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
+      const res = await axios.post(
+        "http://localhost:8000/api/datasets/validate-model-dataset/",
+        formData,
+        {
+          headers: { "Content-Type": "multipart/form-data" },
+        }
+      );
       if (res.data.status === "success") {
         toast({
           title: "Validation Success",
-          description: `Dataset columns match model features: ${res.data.model_features.join(", ")}`,
+          description: `Dataset columns match model features: ${res.data.model_features.join(
+            ", "
+          )}`,
           variant: "success",
         });
         return true;
@@ -81,12 +87,18 @@ const UploadPage = () => {
         return false;
       }
     } catch (err) {
-      let errorMsg = err.response?.data?.error || "Validation failed. Please check your files.";
+      let errorMsg =
+        err.response?.data?.error ||
+        "Validation failed. Please check your files.";
       let details = "";
       if (err.response?.data?.missing_columns) {
-        details = `\nMissing columns: ${err.response.data.missing_columns.join(", ")}`;
+        details = `\nMissing columns: ${err.response.data.missing_columns.join(
+          ", "
+        )}`;
       } else if (err.response?.data?.extra_columns) {
-        details = `\nExtra columns: ${err.response.data.extra_columns.join(", ")}`;
+        details = `\nExtra columns: ${err.response.data.extra_columns.join(
+          ", "
+        )}`;
       }
       toast({
         title: "Validation Error",
@@ -97,37 +109,43 @@ const UploadPage = () => {
     }
   };
   // Download handler for cleaned CSV
-function handleDownload(cleanedCSV) {
-  if (!cleanedCSV) return;
-  const blob = new Blob([cleanedCSV], { type: "text/csv" });
-  const url = window.URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = "cleaned_data.csv";
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  window.URL.revokeObjectURL(url);
-}
+  function handleDownload(cleanedCSV) {
+    if (!cleanedCSV) return;
+    const blob = new Blob([cleanedCSV], { type: "text/csv" });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "cleaned_data.csv";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+  }
 
-// Helper for rendering cleaning summary items
-function summaryItem(label, value) {
-  if (value === undefined || value === null || (Array.isArray(value) && value.length === 0)) return null;
-  return (
-    <li>
-      <strong>{label}:</strong> {Array.isArray(value) ? value.join(", ") : value}
-    </li>
-  );
-}
+  // Helper for rendering cleaning summary items
+  function summaryItem(label, value) {
+    if (
+      value === undefined ||
+      value === null ||
+      (Array.isArray(value) && value.length === 0)
+    )
+      return null;
+    return (
+      <li>
+        <strong>{label}:</strong>{" "}
+        {Array.isArray(value) ? value.join(", ") : value}
+      </li>
+    );
+  }
 
   // Auth state for UI
   const [isAuthenticated, setIsAuthenticated] = useState(
     !!localStorage.getItem("authToken")
   );
-const handleUploadResponse = (response) => {
-  setModelUploaded(!!response.model_uploaded);
-  // ...other state updates
-};
+  const handleUploadResponse = (response) => {
+    setModelUploaded(!!response.model_uploaded);
+    // ...other state updates
+  };
 
   // Listen for login/logout changes
   useEffect(() => {
@@ -141,7 +159,12 @@ const handleUploadResponse = (response) => {
   useEffect(() => {
     if (csvFile && isAuthenticated) {
       // Optionally reset downstream state here if needed
-      fetchCsvColumns(csvFile, missingStrategy, targetColumn, selectedAttributes);
+      fetchCsvColumns(
+        csvFile,
+        missingStrategy,
+        targetColumn,
+        selectedAttributes
+      );
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [csvFile, missingStrategy]);
@@ -244,12 +267,10 @@ const handleUploadResponse = (response) => {
       console.error("Preprocessing failed:", err.response?.data || err);
       toast({
         title: "Preprocessing Failed",
-        description:
-           (err.response?.data?.error || ""),
+        description: err.response?.data?.error || "",
         variant: "destructive",
       });
       setIsPreprocessed(false);
-      setPreprocessedDataKey(null);
       setProblemType(null);
     }
   };
@@ -310,7 +331,8 @@ const handleUploadResponse = (response) => {
       setCanStartAnalysis(true);
       toast({
         title: "Model Training Complete",
-        description: res.data.message || "Model trained and ready for analysis.",
+        description:
+          res.data.message || "Model trained and ready for analysis.",
       });
     } catch (err) {
       setCanStartAnalysis(false);
@@ -318,7 +340,8 @@ const handleUploadResponse = (response) => {
       toast({
         title: "Model Training Failed",
         description:
-          err.response?.data?.error || "An error occurred during model training.",
+          err.response?.data?.error ||
+          "An error occurred during model training.",
         variant: "destructive",
       });
     }
@@ -349,67 +372,67 @@ const handleUploadResponse = (response) => {
     });
   };
 
-const handleDualUpload = async () => {
-  if (!csvFile) {
-    toast({
-      title: "CSV Required",
-      description: "Please upload a CSV file.",
-      variant: "destructive",
-    });
-    return;
-  }
-  if (!targetColumn || selectedAttributes.length === 0) {
-    toast({
-      title: "Missing Information",
-      description: "Please select a target column and sensitive attributes.",
-      variant: "destructive",
-    });
-    return;
-  }
-  const formData = new FormData();
-  formData.append("csv_file", csvFile);
-  if (modelFile) formData.append("model_file", modelFile);
-  formData.append("target_col", targetColumn);
-  formData.append("sensitive_attrs", JSON.stringify(selectedAttributes));
-  try {
-    const res = await axios.post(
-      "http://localhost:8000/api/datasets/upload_csv_and_model/",
-      formData,
-      {
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
+  const handleDualUpload = async () => {
+    if (!csvFile) {
+      toast({
+        title: "CSV Required",
+        description: "Please upload a CSV file.",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (!targetColumn || selectedAttributes.length === 0) {
+      toast({
+        title: "Missing Information",
+        description: "Please select a target column and sensitive attributes.",
+        variant: "destructive",
+      });
+      return;
+    }
+    const formData = new FormData();
+    formData.append("csv_file", csvFile);
+    if (modelFile) formData.append("model_file", modelFile);
+    formData.append("target_col", targetColumn);
+    formData.append("sensitive_attrs", JSON.stringify(selectedAttributes));
+    try {
+      const res = await axios.post(
+        "http://localhost:8000/api/datasets/upload_csv_and_model/",
+        formData,
+        {
+          headers: {
+            "Content-Type": "multipart/form-data",
+          },
+        }
+      );
+      toast({
+        title: "Analysis Complete",
+        description: res.data.message,
+      });
+      // If no model was uploaded, enable model selection and training
+      if (res.data && res.data.model_uploaded === false) {
+        // Set state to enable model selection and training
+        setIsPreprocessed(true); // or trigger preprocessing if needed
+        setCanStartAnalysis(false); // User must select model and train first
+        setModelUploaded(false);
+        // Optionally, navigate to model selection UI or show a prompt
       }
-    );
-    toast({
-      title: "Analysis Complete",
-      description: res.data.message,
-    });
-    // If no model was uploaded, enable model selection and training
-    if (res.data && res.data.model_uploaded === false) {
-      // Set state to enable model selection and training
-      setIsPreprocessed(true); // or trigger preprocessing if needed
-      setCanStartAnalysis(false); // User must select model and train first
-      setModelUploaded(false);
-      // Optionally, navigate to model selection UI or show a prompt
+      // Optionally: setModelMetrics(res.data.metrics), setReportId(res.data.report_id), etc.
+    } catch (err) {
+      // Print full error to console for debugging
+      if (err.response) {
+        console.error("Upload failed:", err.response.data);
+      } else {
+        console.error("Upload failed:", err);
+      }
+      toast({
+        title: "Upload Failed",
+        description:
+          err.response?.data?.error ||
+          "An error occurred during upload. Check your files and try again.",
+        variant: "destructive",
+      });
     }
-    // Optionally: setModelMetrics(res.data.metrics), setReportId(res.data.report_id), etc.
-  } catch (err) {
-    // Print full error to console for debugging
-    if (err.response) {
-      console.error("Upload failed:", err.response.data);
-    } else {
-      console.error("Upload failed:", err);
-    }
-    toast({
-      title: "Upload Failed",
-      description:
-        err.response?.data?.error ||
-        "An error occurred during upload. Check your files and try again.",
-      variant: "destructive",
-    });
-  }
-};
+  };
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 py-12">
       <div className="max-w-6xl mx-auto px-4">
@@ -451,7 +474,8 @@ const handleDualUpload = async () => {
                 }
                 onError={({ type, message }) => {
                   toast({
-                    title: type === "size" ? "File Too Large" : "Invalid File Type",
+                    title:
+                      type === "size" ? "File Too Large" : "Invalid File Type",
                     description: message,
                     variant: "destructive",
                   });
@@ -548,52 +572,56 @@ const handleDualUpload = async () => {
                       Continue
                     </Button>
 
-                    {!modelUploaded &&(<>
-                      {/* ✨ Display inferred problem type */}
-                    {problemType && (
-                      <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200 text-sm text-blue-700 font-medium">
-                        Problem Type Detected:{" "}
-                        <Badge className="bg-blue-200 text-blue-800">
-                          {problemType.replace(/_/g, " ").toUpperCase()}
-                        </Badge>
-                      </div>
+                    {!modelUploaded && (
+                      <>
+                        {/* ✨ Display inferred problem type */}
+                        {problemType && (
+                          <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200 text-sm text-blue-700 font-medium">
+                            Problem Type Detected:{" "}
+                            <Badge className="bg-blue-200 text-blue-800">
+                              {problemType.replace(/_/g, " ").toUpperCase()}
+                            </Badge>
+                          </div>
+                        )}
+                        <Label className="block text-sm font-medium text-gray-700 mb-2">
+                          Select Model for Training
+                        </Label>
+                        {/* Dynamic model options based on problemType */}
+                        <select
+                          value={selectedModel}
+                          onChange={handleModelSelect}
+                          className="w-full p-2 border rounded"
+                          disabled={!isPreprocessed || !problemType}
+                        >
+                          <option value="">-- Select Model --</option>
+                          {problemType === "regression" && (
+                            <>
+                              <option value="linear_regression">
+                                Linear Regression
+                              </option>
+                              <option value="polynomial_regression">
+                                Polynomial Regression
+                              </option>
+                            </>
+                          )}
+                          {(problemType === "binary_classification" ||
+                            problemType === "multi_class_classification") && (
+                            <>
+                              <option value="logistic_regression">
+                                Logistic Regression
+                              </option>
+                              <option value="knn">K-Nearest Neighbors</option>
+                              <option value="decision_tree">
+                                Decision Tree
+                              </option>
+                              <option value="random_forest">
+                                Random Forest
+                              </option>
+                            </>
+                          )}
+                        </select>
+                      </>
                     )}
-                    <Label className="block text-sm font-medium text-gray-700 mb-2">
-                      Select Model for Training
-                    </Label>
-                    {/* Dynamic model options based on problemType */}
-                    <select
-                      value={selectedModel}
-                      onChange={handleModelSelect}
-                      className="w-full p-2 border rounded"
-                      disabled={!isPreprocessed || !problemType}
-                    >
-                      <option value="">-- Select Model --</option>
-                      {problemType === "regression" && (
-                        <>
-                          <option value="linear_regression">
-                            Linear Regression
-                          </option>
-                          <option value="polynomial_regression">
-                            Polynomial Regression
-                          </option>
-                        </>
-                      )}
-                      {(problemType === "binary_classification" ||
-                        problemType === "multi_class_classification") && (
-                        <>
-                          <option value="logistic_regression">
-                            Logistic Regression
-                          </option>
-                          <option value="knn">K-Nearest Neighbors</option>
-                          <option value="decision_tree">Decision Tree</option>
-                          <option value="random_forest">Random Forest</option>
-                        </>
-                      )}
-                    
-                    </select>
-                    </>)}
-                  
                   </div>
                 </>
               )}
@@ -651,20 +679,31 @@ const handleDualUpload = async () => {
                   </ul>
                 </div>
               )}
+              
               {modelMetrics && (
-                <div className="mt-6 bg-green-50 border border-green-300 p-4 rounded">
-                  <h4 className="font-semibold text-green-800 mb-2">
+                <div className="mt-6 bg-white/90 backdrop-blur-md border border-green-300 shadow-md rounded-xl p-6">
+                  <h4 className="text-lg font-bold text-green-800 flex items-center mb-4">
+                    
                     Model Metrics
                   </h4>
-                  <ul className="text-sm text-green-800 list-disc list-inside">
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     {Object.entries(modelMetrics).map(([key, value]) => {
-                      // console.log("[DEBUG] Model Metric:", key, value);
-                      if (key =="individual_fairness" || key == "calibration" || key == "equalized_odds" || key == "demographic_parity"|| key=="regression_fairness"){
+                      
+                      if (
+                        key === "individual_fairness" ||
+                        key === "calibration" ||
+                        key === "equalized_odds" ||
+                        key === "demographic_parity" ||
+                        key === "regression_fairness"
+                      ) {
                         return null;
                       }
-                      console.log(key)
-                      // Recursively render metric value(s) to handle deeply nested objects
+
                       const renderMetricValue = (val) => {
+                        if (key == 'polynomial_degree'){
+                          return isNaN(val) ? "N/A" : val.toFixed(1);
+                        }
                         if (typeof val === "number")
                           return isNaN(val) ? "N/A" : val.toFixed(4);
                         if (val === null || val === undefined) return "N/A";
@@ -687,16 +726,25 @@ const handleDualUpload = async () => {
                         }
                         return val;
                       };
+
                       return (
-                        <li key={key}>
-                          {key.replace(/_/g, " ").toUpperCase()}:{" "}
-                          {renderMetricValue(value)}
-                        </li>
+                        <div
+                          key={key}
+                          className="bg-green-50 border border-green-200 rounded-lg px-4 py-3 shadow-sm hover:shadow-md transition-all"
+                        >
+                          <p className="text-xs font-medium text-green-700 tracking-wide mb-1">
+                            {key.replace(/_/g, " ").toUpperCase()}
+                          </p>
+                          <p className="text-sm text-green-900 font-semibold">
+                            {renderMetricValue(value)}
+                          </p>
+                        </div>
                       );
                     })}
-                  </ul>
+                  </div>
                 </div>
               )}
+
               {cleanedCSV && (
                 <Button
                   onClick={handleDownload}
@@ -744,9 +792,7 @@ const handleDualUpload = async () => {
         <div className="text-center mt-8">
           <Button
             disabled={
-              !csvFile ||
-              !targetColumn ||
-              selectedAttributes.length === 0
+              !csvFile || !targetColumn || selectedAttributes.length === 0
             }
             onClick={async () => {
               // If both files are present, validate before analysis
@@ -758,7 +804,10 @@ const handleDualUpload = async () => {
                 formData.append("csv_file", csvFile);
                 formData.append("model_file", modelFile);
                 formData.append("target_col", targetColumn);
-                formData.append("sensitive_attrs", JSON.stringify(selectedAttributes));
+                formData.append(
+                  "sensitive_attrs",
+                  JSON.stringify(selectedAttributes)
+                );
                 try {
                   const res = await axios.post(
                     "http://localhost:8000/api/datasets/upload_csv_and_model/",
@@ -788,7 +837,9 @@ const handleDualUpload = async () => {
                   }
                   // Optionally: setModelMetrics(res.data.metrics), setReportId(res.data.report_id), etc.
                 } catch (err) {
-                  let errorMsg = err.response?.data?.error || "An error occurred during upload. Check your files and try again.";
+                  let errorMsg =
+                    err.response?.data?.error ||
+                    "An error occurred during upload. Check your files and try again.";
                   if (err.response) {
                     console.error("Dual upload failed:", err.response.data);
                   } else {
@@ -802,10 +853,16 @@ const handleDualUpload = async () => {
                 }
               } else {
                 // CSV-only flow: keep existing logic
-                if (!isPreprocessed || !selectedModel || !reportId || !canStartAnalysis) {
+                if (
+                  !isPreprocessed ||
+                  !selectedModel ||
+                  !reportId ||
+                  !canStartAnalysis
+                ) {
                   toast({
                     title: "Not Ready",
-                    description: "Please complete preprocessing and model selection before starting analysis.",
+                    description:
+                      "Please complete preprocessing and model selection before starting analysis.",
                     variant: "destructive",
                   });
                   return;

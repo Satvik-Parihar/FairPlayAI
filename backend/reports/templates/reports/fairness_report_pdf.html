@@ -160,7 +160,14 @@
 <div class="section">
   <h1>Fairness Report for <span class="key-value">{{ report.dataset_name|default:"Dataset" }}</span></h1>
   <p>Target Column: <span class="key-value">{{ report.target_column|default:"Target" }}</span></p>
-  <p>Generated on: <span class="key-value">{{ report.created_at }}</span></p>
+  <p>
+  Generated on:
+  <span class="key-value">
+    {{ report.created_at|date:"F j, Y" }}
+
+  </span>
+</p>
+
 
   <h2>Overall Fairness Score</h2>
   <table class="table-2col">
@@ -214,6 +221,7 @@
 </div>
 
 <!-- Individual Metric Tables -->
+ {% if metrics.demographic_parity %}
 <div class="section page-break">
   <h2>Demographic Parity</h2>
   {% if metrics.demographic_parity %}
@@ -244,7 +252,9 @@
     <p>No Demographic Parity metrics available.</p>
   {% endif %}
 </div>
+{% endif %}
 
+{% if metrics.equalized_odds %}
 <div class="section page-break">
   <h2>Equalized Odds</h2>
   {% if metrics.equalized_odds %}
@@ -281,7 +291,8 @@
     <p>No Equalized Odds metrics available.</p>
   {% endif %}
 </div>
-
+{% endif %}
+{% if metrics.calibration %}
 <div class="section page-break">
   <h2>Calibration</h2>
   {% if metrics.calibration %}
@@ -317,7 +328,8 @@
     <p>No calibration data available.</p>
   {% endif %}
 </div>
-
+{% endif %}
+{% if metrics.individual_fairness %}
 <div class="section page-break">
   <h2>Individual Fairness</h2>
   {% if metrics.individual_fairness %}
@@ -351,7 +363,7 @@
     <p>No Individual Fairness metrics available.</p>
   {% endif %}
 </div>
-
+{% endif %}
 <div class="section page-break">
   <h2>Suggestions</h2>
   {% if suggestions %}
@@ -435,7 +447,7 @@
 </div> -->
 
 <div class="section page-break">
-  <h2>Charts</h2>
+  <!-- <h2>Charts</h2> -->
   <!-- {% if charts %}
     {% for chart in charts %}
       <img src="{{ chart }}" class="center-img" style="max-width: 600px;" alt="Chart" />
@@ -444,11 +456,15 @@
     <p>No charts available.</p>
   {% endif %} -->
   {% if chart_paths %}
-    {% for name, path in chart_paths.items %}
-      <h3>{{ name|title }} Chart</h3>
-      <img src="{{ path }}" class="center-img" style="width:400px; max-width:100%;" alt="{{ name }} chart" />
-    {% endfor %}
-  {% endif %}
+  {% for name, path in chart_paths.items %}
+    <h3>{{ name|title }} Chart</h3>
+    <img src="{{ path }}" class="center-img" style="width:400px; max-width:100%;" alt="{{ name }} chart" />
+  {% endfor %}
+{% endif %}
+
+
+
+
   <!-- {% if frontend_viz_path %}
       <h3>Visualizations Snapshot</h3>
       <img src="{{ frontend_viz_path }}" class="center-img" style="width:100%;max-width:600px;" alt="Visualization Snapshot" />

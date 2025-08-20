@@ -126,91 +126,9 @@ const LandingPage = () => {
       {/* Stats Section */}
       <StatsSection />
 
-      {/* Testimonials */}
-      <section className="py-32 bg-gradient-to-br from-gray-50 to-blue-50">
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="text-center mb-20">
-            <Badge className="mb-6 px-4 py-2 bg-gradient-to-r from-yellow-100 to-orange-100 text-orange-700 border-orange-200/50">
-              <Star className="w-4 h-4 mr-2" />
-              Customer Love
-            </Badge>
-            <h2 className="text-5xl font-bold text-gray-900 mb-8">
-              What Our Users Say
-            </h2>
-            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-              Join hundreds of ML teams building fairer AI systems
-            </p>
-          </div>
+      
 
-          <div className="grid md:grid-cols-3 gap-8">
-            {testimonials.map((testimonial, index) => (
-              <Card key={index} className="relative overflow-hidden border-0 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105">
-                <CardContent className="p-8">
-                  <div className="flex items-center mb-4">
-                    {[...Array(testimonial.rating)].map((_, i) => (
-                      <Star key={i} className="w-5 h-5 text-yellow-400 fill-current" />
-                    ))}
-                  </div>
-                  
-                  <Quote className="w-8 h-8 text-blue-200 mb-4" />
-                  <p className="text-gray-700 leading-relaxed mb-6 italic">
-                    "{testimonial.quote}"
-                  </p>
-                  
-                  <div className="flex items-center">
-                    <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white font-bold mr-4">
-                      {testimonial.avatar}
-                    </div>
-                    <div>
-                      <div className="font-semibold text-gray-900">{testimonial.author}</div>
-                      <div className="text-sm text-gray-600">{testimonial.role}</div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Final CTA */}
-      <section className="py-32 bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900 relative overflow-hidden">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(59,130,246,0.1),transparent_70%)]" />
-        
-        <div className="max-w-4xl mx-auto text-center px-6 relative z-10">
-          <h2 className="text-5xl md:text-6xl font-bold text-white mb-8 leading-tight">
-            Ready to Build
-            <br />
-            <span className="bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
-              Fairer AI?
-            </span>
-          </h2>
-          <p className="text-xl text-gray-300 mb-12 leading-relaxed max-w-2xl mx-auto">
-            Join thousands of data scientists and ML engineers who trust FairPlayAI 
-            to detect and mitigate bias in their machine learning models.
-          </p>
-          
-          <div className="flex flex-col sm:flex-row gap-6 justify-center items-center">
-            <Link to="/upload">
-              <Button size="lg" className="group relative overflow-hidden bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-12 py-6 text-lg font-semibold shadow-2xl hover:shadow-blue-500/25 transition-all duration-300 transform hover:scale-105 border-0">
-                <div className="absolute inset-0 bg-white/10 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700" />
-                <Upload className="mr-3 h-6 w-6" />
-                Start Free Analysis
-                <ArrowRight className="ml-3 h-5 w-5 group-hover:translate-x-1 transition-transform" />
-              </Button>
-            </Link>
-            <Link to="/dashboard">
-              <Button variant="outline" size="lg" className="border-2 border-gray-300/50 text-gray-300 hover:bg-white/10 hover:border-white/50 hover:text-white px-12 py-6 text-lg font-semibold backdrop-blur-sm transition-all duration-300">
-                View Sample Report
-              </Button>
-            </Link>
-          </div>
-          
-          <div className="mt-12 text-gray-400 text-sm">
-            No credit card required • Start analyzing in 2 minutes • SOC2 compliant
-          </div>
-        </div>
-      </section>
+     
     </div>
   );
 };

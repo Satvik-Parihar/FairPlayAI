@@ -8,7 +8,7 @@ import LandingPage from "./pages/LandingPage";
 import UploadPage from "./pages/UploadPage";
 import ReportPage from "./pages/ReportPage";
 import LoginPage from "./pages/LoginPage";
-import Dashboard from "./pages/Dashboard";
+
 import NotFound from "./pages/NotFound";
 import RegisterPage from "./pages/RegisterPage";
 import ForgotPasswordPage from "./pages/ForgotPasswordPage";
@@ -42,7 +42,7 @@ const App = () => (
             {/* <Route path="/clean-data/:report_id" element={<CleaningDashboard />} /> New route */}
         {/* Add a new route for attribute selection after cleaning */}
         <Route path="/select-attributes/:report_id" element={<div>Attribute Selection Page (Coming Soon)</div>} /> 
-            <Route path="dashboard" element={<Dashboard />} />
+            
             <Route path="*" element={<NotFound />} />
           </Route>
           {/* Auth pages */}
