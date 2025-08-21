@@ -188,6 +188,7 @@ def export_fairness_report_pdf(request, report_id):
     if calibration:
         # Render calibration as a vector-based HTML table
         calibration_table_html = render_calibration_table(calibration)
+    overall_fairness_score = report.get('overall_fairness_score', None)
 
     # --- Generate the metrics table using the formatter ---
     context = {
@@ -202,6 +203,7 @@ def export_fairness_report_pdf(request, report_id):
         'metrics_table_data': metrics_table_data,  # <-- Pass the raw table data
         'theme': theme,
         'calibration_table_html': mark_safe(calibration_table_html),
+        'overall_fairness_score': overall_fairness_score, 
          'created_at': timezone.now(), 
     }
 
