@@ -131,12 +131,15 @@ class AnalysisReport:
             except ImportError:
                 # Minimal fallback implementation
                 def run_fairness_metrics(y_true, y_pred, df, sensitive_attrs, model_type):
+                    print("Sensitive attributes received:", sensitive_attrs)
                     # This is a placeholder. Replace with actual fairness metrics logic as needed.
                     return {
                         "accuracy": (y_true == y_pred).mean() if hasattr(y_true, "__eq__") else None,
                         "sensitive_attrs_checked": sensitive_attrs,
                         "model_type": model_type
                     }
+            print("Sensitive attributes received:", sensitive_attrs)
+
             metrics = run_fairness_metrics(y_true, y_pred, df, sensitive_attrs, model_type)
         except Exception as e:
             return {"success": False, "error": f"Fairness metric computation failed: {e}"}

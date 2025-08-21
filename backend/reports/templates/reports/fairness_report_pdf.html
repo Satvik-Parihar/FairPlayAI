@@ -194,10 +194,14 @@
     </tbody>
   </table>
 
-  <h2>Fairness Metrics Overview</h2>
-  {% if metrics %}
+
+  <div class="section page-break">
+  <h2>Performance Metrics Overview</h2>
+
+  {% if metrics.accuracy or metrics.precision or metrics.recall or metrics.f1_score %}
+  <!-- Classification Metrics Table -->
   <table class="table-2col">
-    <caption>Fairness Metrics Overview</caption>
+    <caption>Classification Metrics</caption>
     <thead>
       <tr>
         <th>Metric</th>
@@ -205,19 +209,88 @@
       </tr>
     </thead>
     <tbody>
-      {% for metric_name, metric_value in metrics.items %}
-        {% if metric_name in "accuracy,precision,recall,f1_score,roc_auc" %}
-        <tr>
-          <td class="key-value">{{ metric_name|title|cut:"_" }}</td>
-          <td><span class="key-value">{{ metric_value|floatformat:"3" }}</span></td>
-        </tr>
-        {% endif %}
+      {% if metrics.accuracy %}
+      <tr><td class="key-value">Accuracy</td><td class="key-value">{{ metrics.accuracy|floatformat:"3" }}</td></tr>
+      {% endif %}
+      {% if metrics.precision %}
+      <tr><td class="key-value">Precision</td><td class="key-value">{{ metrics.precision|floatformat:"3" }}</td></tr>
+      {% endif %}
+      {% if metrics.recall %}
+      <tr><td class="key-value">Recall</td><td class="key-value">{{ metrics.recall|floatformat:"3" }}</td></tr>
+      {% endif %}
+      {% if metrics.f1_score %}
+      <tr><td class="key-value">F1 Score</td><td class="key-value">{{ metrics.f1_score|floatformat:"3" }}</td></tr>
+      {% endif %}
+      {% if metrics.roc_auc %}
+      <tr><td class="key-value">ROC AUC</td><td class="key-value">{{ metrics.roc_auc|floatformat:"3" }}</td></tr>
+      {% endif %}
+    </tbody>
+  </table>
+ <h3>Bias Severity Summary</h3>
+  <table class="table-2col">
+    <thead>
+      <tr>
+        <th>Attribute</th>
+        <th>Severity</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for sev in bias_detected %}
+      <tr>
+        <td class="key-value">{{ sev.attribute }}</td>
+        <td class="key-value">{{ sev.severity|title }}</td>
+      </tr>
       {% endfor %}
     </tbody>
   </table>
-  {% else %}
-  <p>No metrics available.</p>
+  {% elif metrics.mse or metrics.mae or metrics.rmse or metrics.r2 or metrics.mase %}
+  <!-- Regression Metrics Table -->
+  <table class="table-2col">
+    <caption>Regression Metrics</caption>
+    <thead>
+      <tr>
+        <th>Metric</th>
+        <th>Value</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% if metrics.mse %}
+      <tr><td class="key-value">MSE</td><td class="key-value">{{ metrics.mse|floatformat:"3" }}</td></tr>
+      {% endif %}
+      {% if metrics.mae %}
+      <tr><td class="key-value">MAE</td><td class="key-value">{{ metrics.mae|floatformat:"3" }}</td></tr>
+      {% endif %}
+      {% if metrics.rmse %}
+      <tr><td class="key-value">RMSE</td><td class="key-value">{{ metrics.rmse|floatformat:"3" }}</td></tr>
+      {% endif %}
+      {% if metrics.r2 %}
+      <tr><td class="key-value">R²</td><td class="key-value">{{ metrics.r2|floatformat:"3" }}</td></tr>
+      {% endif %}
+      {% if metrics.mase %}
+      <tr><td class="key-value">MASE</td><td class="key-value">{{ metrics.mase|floatformat:"3" }}</td></tr>
+      {% endif %}
+    </tbody>
+  </table>
+  <h3>Bias Severity Summary</h3>
+  <table class="table-2col">
+    <thead>
+      <tr>
+        <th>Attribute</th>
+        <th>Severity</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for sev in bias_detected %}
+      <tr>
+        <td class="key-value">{{ sev.attribute }}</td>
+        <td class="key-value">{{ sev.severity|title }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
   {% endif %}
+</div>
+
 </div>
 
 <!-- Individual Metric Tables -->

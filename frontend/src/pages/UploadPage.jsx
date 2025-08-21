@@ -744,15 +744,6 @@ const UploadPage = () => {
                   </div>
                 </div>
               )}
-
-              {cleanedCSV && (
-                <Button
-                  onClick={handleDownload}
-                  className="mt-4 bg-blue-600 hover:bg-blue-700 text-white"
-                >
-                  Download Cleaned CSV
-                </Button>
-              )}
             </CardContent>
           </Card>
 

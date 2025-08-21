@@ -89,6 +89,8 @@ const ReportPage = () => {
       setError(null);
       try {
         const data = await getReport(reportId);
+        console.log("Fetched report data:", data); // <-- log full data
+      console.log("biasDetected array:", data.biasDetected); // <-- specifically log biasDetected
         setReportData(data);
       } catch (err) {
         setError(err);
@@ -604,13 +606,16 @@ const ReportPage = () => {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
+              {console.log("biasDetected:", biasDetected)}
               {biasDetected.length === 0 ? (
                 <div className="text-gray-500">
                   No bias detection results available.
                 </div>
               ) : (
                 biasDetected.map((bias, index) => (
+                  
                   <div
+                    
                     key={index}
                     className="flex items-center justify-between p-4 border rounded-lg"
                   >

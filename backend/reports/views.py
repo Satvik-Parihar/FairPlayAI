@@ -205,6 +205,7 @@ def export_fairness_report_pdf(request, report_id):
         'calibration_table_html': mark_safe(calibration_table_html),
         'overall_fairness_score': overall_fairness_score, 
          'created_at': timezone.now(), 
+         'bias_detected': bias_detected,
     }
 
     html = render_to_string('reports/fairness_report_pdf.html', context)

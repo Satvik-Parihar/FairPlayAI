@@ -1,6 +1,4 @@
 from rest_framework.decorators import api_view, permission_classes
-
-
 import pandas as pd
 import io
 import json
@@ -23,6 +21,7 @@ from rest_framework.parsers import MultiPartParser, FormParser
 def get_report(request, report_id):
     """Return the full MongoDB report document as JSON, or 404 if not found."""
     report = AnalysisReport.get_report(report_id)
+    # print(report.get("bias_detected", []))
     if not report:
         return Response({"error": "Report not found."}, status=status.HTTP_404_NOT_FOUND)
     # Convert ObjectId to string for JSON serialization
@@ -39,6 +38,7 @@ def get_report(request, report_id):
             # Default to classification if unsure
             report["problem_type"] = "classification"
     return Response(report, status=status.HTTP_200_OK)
+
 class CsvUploadView(APIView):
     parser_classes = (MultiPartParser, FormParser)
     permission_classes = [IsAuthenticated]
@@ -127,6 +127,7 @@ class CleaningOptionsView(APIView):
     def get(self, request, report_id, *args, **kwargs):
         # Retrieve the report from MongoDB using the mongo_id passed from frontend
         report = AnalysisReport.get_report(report_id) # report_id here should be the mongo_id
+        print(report.get("bias_detected", []))
         if not report:
             return Response({"error": "Report not found."}, status=status.HTTP_404_NOT_FOUND)
         

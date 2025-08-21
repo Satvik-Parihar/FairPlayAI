@@ -435,9 +435,12 @@ def train_selected_model(request):
         bias_detected = []
         if problem_type == "regression":
             regression_fairness = metrics.get("regression_fairness", {})
+            print("regression fairness ", regression_fairness)
             for attr, group_metrics in regression_fairness.items():
                 group_mae = group_metrics.get("group_mae", {})
                 maes = [v for v in group_mae.values() if isinstance(v, (int, float)) and v is not None and not math.isnan(v)]
+                print("Group MAEs for", attr, group_mae)
+
                 if not maes or len(maes) <= 1:
                     continue  # Not enough data to assess bias
                 max_mae = max(maes)
@@ -454,6 +457,7 @@ def train_selected_model(request):
                     "score": round(bias_score, 4),
                     "severity": severity
                 })
+                print(bias_detected)
         else:
             dp = metrics.get("demographic_parity")
             if isinstance(dp, dict):
@@ -663,7 +667,10 @@ def upload_csv_and_model(request):
             return Response({"error": f"Failed to read CSV: {e}"}, status=400)
 
         target_col = request.data.get("target_col")
+        
+
         sensitive_attrs = request.data.get("sensitive_attrs")
+        print("Sensitive attributes received:", sensitive_attrs)
         if not target_col or not sensitive_attrs:
             return Response({"error": "target_col and sensitive_attrs are required."}, status=400)
         if isinstance(sensitive_attrs, str):
