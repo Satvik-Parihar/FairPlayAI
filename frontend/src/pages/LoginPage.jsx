@@ -54,7 +54,7 @@ const LoginPage = () => {
         description: `Welcome back, ${response.data.user?.name || "user"}!`,
       });
 
-      window.location.href = "/dashboard";
+      window.location.href = "/upload";
     } catch (error) {
       toast({
         title: "Login Failed",
