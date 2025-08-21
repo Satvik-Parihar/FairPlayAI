@@ -207,7 +207,8 @@ def export_fairness_report_pdf(request, report_id):
          'created_at': timezone.now(), 
          'bias_detected': bias_detected,
     }
-
+    # print("metrics",metrics)
+    print("context",context)
     html = render_to_string('reports/fairness_report_pdf.html', context)
     html = preprocess_html_images(html)
     response = HttpResponse(content_type='application/pdf')
@@ -219,7 +220,7 @@ def export_fairness_report_pdf(request, report_id):
     return response
 
 def convert_file_url_to_path(src):
-    # Remove 'file://' if present, always return absolute path
+    # Remove 'file://' if present, always return absolute paths
     if src.startswith('file://'):
         abs_path = src.replace('file://', '')
         return abs_path
