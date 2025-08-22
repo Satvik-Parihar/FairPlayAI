@@ -166,7 +166,7 @@ def google_callback(request):
     finally:
         client.close()
 
-    frontend_url = os.environ.get('FRONTEND_URL', 'http://localhost:5173/dashboard')
+    frontend_url = os.environ.get('FRONTEND_URL', 'http://localhost:5173/upload')
     redirect_url = f"{frontend_url}?email={email}&name={name}"
     return HttpResponseRedirect(redirect_url)
 
@@ -223,6 +223,6 @@ def github_callback(request):
     finally:
         client.close()
 
-    frontend_url = os.environ.get('FRONTEND_URL', 'http://localhost:5173/dashboard')
+    frontend_url = os.environ.get('FRONTEND_URL', 'http://localhost:5173/upload')
     redirect_url = f"{frontend_url}?email={email}&name={name}"
     return HttpResponseRedirect(redirect_url)
