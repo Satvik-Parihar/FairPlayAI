@@ -1,127 +1,138 @@
 # FairPlayAI
 
-FairPlayAI is a full-stack application designed to analyze and mitigate **bias in AI/ML models**. It provides an end-to-end pipeline for dataset preprocessing, fairness analysis, bias detection, and visualization. The project combines a **Django backend** with a **React + Tailwind frontend** for a seamless user experience.
+FairPlayAI is a full-stack web application designed to help developers and data scientists analyze and mitigate bias in their AI/ML models. It provides a user-friendly interface to upload datasets, get fairness reports, and visualize the results.
 
----
 
-## 📂 Project Structure
+## About The Project
 
-```
-FairPlayAI-master/
-│-- backend/         # Django backend (APIs, fairness logic, dataset handling)
-│-- frontend/        # React frontend (UI for uploads, fairness reports)
-│-- server/          # Additional server utilities
-│-- gp.py            # Utility script
-│-- train_housing_model.py  # Example ML model training script
-│-- requirements.txt # Python dependencies
-│-- README.md        # (Existing short readme)
-│-- .gitignore
-│-- Titanic-Dataset.csv_fairness_report.pdf  # Example fairness report
-```
+As AI and machine learning models become increasingly integrated into our daily lives, it is crucial to ensure that they are fair and unbiased. FairPlayAI is a tool that helps you to:
 
----
+* **Identify bias:** Uncover hidden biases in your datasets and models.
+* **Analyze fairness:** Get a comprehensive fairness report with various metrics.
+* **Mitigate bias:** Clean your dataset and download a debiased version.
+* **Visualize results:** Understand the fairness report with easy-to-understand visualizations.
 
-## ✨ Features
+This project aims to make AI fairness accessible to everyone, regardless of their technical expertise.
 
-* **Dataset Upload & Cleaning** (missing values, duplicates, outliers, normalization)
-* **Bias & Fairness Metrics**
+## Key Features
 
-  * Accuracy, Precision, Recall, F1-score
-  * Demographic Parity, Equalized Odds, Calibration
-* **Visualization** of fairness reports
-* **Downloadable cleaned datasets**
-* **Custom model upload support**
-* **Interactive React frontend** with toast notifications and real-time updates
+* **Dataset Upload & Cleaning:**
+    * Upload your dataset in CSV format.
+    * Handle missing values, duplicates, and outliers.
+    * Normalize your data for better model performance.
+* **Bias & Fairness Metrics:**
+    * Calculate a wide range of fairness metrics, including:
+        * Accuracy
+        * Precision
+        * Recall
+        * F1-score
+        * Demographic Parity
+        * Equalized Odds
+        * Calibration
+* **Visualization:**
+    * Get a detailed fairness report in a visually appealing format.
+    * Interactive charts and graphs to help you understand the results.
+* **Downloadable Resources:**
+    * Download the cleaned and debiased dataset.
+    * Download the fairness report as a PDF.
+* **Custom Model Support:**
+    * Upload your own trained model for fairness analysis.
+    * Get insights into how your model performs on different subgroups of the population.
 
----
+## Technologies Used
 
-## 🛠️ Tech Stack
+* **Backend:** Django, Django REST Framework
+* **Frontend:** React, Tailwind CSS
+* **Database:** SQLite3 (or any other Django-supported database)
 
-**Backend (Django + DRF):**
+## Getting Started
 
-* Django
-* Django REST Framework
-* Pandas, NumPy (data preprocessing)
-* Scikit-learn (ML training & evaluation)
+To get a local copy up and running follow these simple steps.
 
-**Frontend (React + Tailwind):**
+### Prerequisites
 
-* React (Vite setup)
-* Tailwind CSS
-* ShadCN UI components
-* Axios for API requests
+* Python 3.8+
+* Node.js and npm
+* Pip (Python package installer)
 
----
+### Installation
 
-## ⚙️ Setup Instructions
+1.  **Clone the repo**
+    ```sh
+    git clone [https://github.com/Satvik-Parihar/FairPlayAI.git](https://github.com/Satvik-Parihar/FairPlayAI.git)
+    ```
+2.  **Backend Setup**
+    ```sh
+    cd FairPlayAI/backend
+    pip install -r requirements.txt
+    python manage.py migrate
+    python manage.py runserver
+    ```
+3.  **Frontend Setup**
+    ```sh
+    cd FairPlayAI/frontend
+    npm install
+    npm start
+    ```
 
-### 1. Clone the Repository
+## Project Structure
+
+The repository is organized into two main parts: `backend` for the Django application and `frontend` for the React application.
+
 
 ```bash
-git clone https://github.com/yourusername/FairPlayAI.git
-cd FairPlayAI-master
-```
+FairPlayAI/
+├── .gitignore                 # Specifies intentionally untracked files to ignore
 
-### 2. Backend Setup (Django)
+├── backend/                   # Backend (Django)
+│   ├── api/                   # Django app to handle core API logic
+│   │   ├── migrations/        # Database migration files
+│   │   ├── __init__.py
+│   │   ├── admin.py           # Django admin configurations
+│   │   ├── apps.py            # Application configuration
+│   │   ├── models.py          # Database models
+│   │   ├── serializers.py     # Manages data serialization (e.g., to JSON)
+│   │   ├── tests.py           # Unit tests for the API
+│   │   ├── urls.py            # URL routing for the API endpoints
+│   │   ├── utils.py           # Core logic for data cleaning & fairness analysis
+│   │   └── views.py           # Defines the API endpoints (request/response logic)
+│   │
+│   ├── fairplayai/            # Main Django project configuration directory
+│   │   ├── __init__.py
+│   │   ├── asgi.py            # ASGI config for async servers
+│   │   ├── settings.py        # Django project settings
+│   │   ├── urls.py            # Root URL configuration
+│   │   └── wsgi.py            # WSGI config for synchronous servers
+│   │
+│   ├── db.sqlite3             # Default SQLite database (development)
+│   ├── manage.py              # Django's command-line utility
+│   └── requirements.txt       # Python dependencies for the backend
 
-```bash
-cd backend
-python -m venv venv
-source venv/bin/activate   # On Windows: venv\Scripts\activate
-pip install -r requirements.txt
+├── frontend/                  # Frontend (React + Tailwind)
+│   ├── public/                # Base HTML and static assets
+│   │   ├── index.html         # Main HTML page for the React app
+│   │   └── ...
+│   │
+│   ├── src/                   # Source code for React app
+│   │   ├── components/        # Reusable UI components (buttons, charts, forms)
+│   │   ├── pages/             # Page-level components (views/screens)
+│   │   ├── App.css            # Main stylesheet
+│   │   ├── App.js             # Root component of the React application
+│   │   ├── index.css          # Global styles
+│   │   └── index.js           # Entry point of the React application
+│   │
+│   ├── .gitignore
+│   ├── package-lock.json      # Records exact versions of dependencies
+│   ├── package.json           # Lists frontend dependencies and scripts
+│   └── tailwind.config.js     # Tailwind CSS configuration
 
-# Run migrations
-python manage.py migrate
+└── README.md                  # Project documentation (this file)
 
-# Start Django server
-python manage.py runserver
-```
 
-The backend will be available at: `http://127.0.0.1:8000/`
+## Usage
 
-### 3. Frontend Setup (React)
-
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
-The frontend will be available at: `http://localhost:5173/`
-
----
-
-## 🚀 Usage
-
-1. Upload a **dataset (CSV)** via the frontend.
-2. Choose **missing value strategy** (drop, mean, median, mode).
-3. Run preprocessing (duplicates, outliers, normalization handled automatically).
-4. Auto-detected **target column** suggested.
-5. View **fairness summary** with bias metrics.
-6. Download the **cleaned dataset** or generated **fairness report (PDF)**.
-
----
-
-## 📊 Example Fairness Metrics
-
-* **Accuracy**: Proportion of correct predictions.
-* **Precision**: Correct positive predictions / Total predicted positives.
-* **Recall**: Correct positive predictions / Actual positives.
-* **F1 Score**: Harmonic mean of precision & recall.
-* **ROC AUC**: Area under ROC curve (discrimination ability).
-* **Demographic Parity**: Equal positive rate across groups.
-* **Equalized Odds**: Equal TPR & FPR across groups.
-* **Calibration**: Predicted probabilities match actual outcomes.
-
----
-
-## 📑 Example Report
-
-A sample fairness report generated on the **Titanic dataset** is included:
-
-```
-Titanic-Dataset.csv_fairness_report.pdf
-```
-
----
-
+1.  Navigate to the web application in your browser.
+2.  Upload your dataset in CSV format.
+3.  The application will automatically preprocess the data and train a baseline model.
+4.  You will be presented with a comprehensive fairness report with visualizations.
+5.  You can download the cleaned dataset and the fairness report.
